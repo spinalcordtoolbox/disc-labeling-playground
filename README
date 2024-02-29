@@ -1,0 +1,12 @@
+# Intervertebral disc labeling playground
+
+## Description
+
+This repository will be used to test different approach for disc labeling
+
+## See also
+
+NeuroPoly disc labeling implementations:
+- Hourglass approach: https://github.com/spinalcordtoolbox/disc-labeling-hourglass
+- nnU-Net approach: https://github.com/spinalcordtoolbox/disc-labeling-nnunet
+- Disc labeling benchmark: https://github.com/spinalcordtoolbox/disc-labeling-benchmark
