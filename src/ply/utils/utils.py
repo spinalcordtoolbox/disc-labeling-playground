@@ -1,4 +1,5 @@
 import os
+import subprocess
 from progress.bar import Bar
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
@@ -34,6 +35,64 @@ def apply_preprocessing(img_path, dim):
 
 
 ##
+def registerNcrop(in_path, dest_path, dest_sc_path, derivatives_folder):
+    '''
+    Crop and register two images for training
+    '''
+    in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
+    dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
+    in_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
+    dest_folder = os.path.join(derivatives_folder, dest_subjectID, dest_sessionID, dest_contrast)
+    out_reg = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    for_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
+    inv_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+    if not os.path.exists(out_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
+        # Register input_image to destination_image
+        subprocess.check_call(['sct_register_multimodal',
+                                '-i', in_path,
+                                '-d', dest_path,
+                                '-o', out_reg,
+                                '-owarp', for_warp_path,
+                                '-owarpinv', inv_warp_path,
+                                '-identity', '1'])
+    
+    input_crop_path = os.path.join(in_folder, filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(ofolder, filename.split('.nii.gz')[0] + '_SCmask' + '.nii.gz')
+    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+        if not os.path.exists(mask_path):
+            # Create spinalcord mask for cropping see https://spinalcordtoolbox.com/user_section/tutorials/multimodal-registration/contrast-agnostic-registration/preprocessing-t2.html#creating-a-mask-around-the-spinal-cord
+            subprocess.check_call(['sct_create_mask',
+                                    '-i', out_reg,
+                                    '-p', f'centerline,{dest_sc_path}',
+                                    '-size', '50mm',
+                                    '-f', 'cylinder',
+                                    '-o', mask_path])
+        # Crop registered contrast
+        subprocess.check_call(['sct_crop_image',
+                                '-i', out_reg,
+                                '-m', mask_path,
+                                '-o', input_crop_path])
+        # Crop dest contrast
+        subprocess.check_call(['sct_crop_image',
+                                '-i', dest_path,
+                                '-m', mask_path,
+                                '-o', dest_crop_path])
+        
+        # Set image orientation to RSP
+        subprocess.check_call(['sct_image',
+                                '-i', input_crop_path,
+                                '-setorient', 'RSP'])
+        
+        subprocess.check_call(['sct_image',
+                                '-i', dest_crop_path,
+                                '-setorient', 'RSP'])
+
+        # TODO: find a way to crop the warping field to the same dimensions
+    
+    return input_crop_path, dest_crop_path
+
+
 ##
 def load_nifti(path_im, dim='3D', orientation='RSP'):
     """
