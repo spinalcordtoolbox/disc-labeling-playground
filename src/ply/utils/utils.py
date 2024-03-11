@@ -34,18 +34,24 @@ def apply_preprocessing(img_path, dim):
 
 
 ##
-def load_nifti(path_im, dim='3D'):
+##
+def load_nifti(path_im, dim='3D', orientation='RSP'):
     """
     Based on: https://github.com/spinalcordtoolbox/disc-labeling-hourglass
     Load a Nifti image using RSP orientation and fetch its metadata.
     :param path_im: path to the nifti image
     :param dim: output format of the image (2D or 3D)
-    :return: image array (in dim format), resolution (in dim format), original shape
+    :return: - image array (in dim format)
+             - resolution (in dim format)
+             - original shape
+             - original orientation
     """
-    img = Image(path_im).change_orientation('RSP')
+    img = Image(path_im)
+    orig_orientation = img.orientation
+    img.change_orientation(orientation)
     nx, ny, nz, nt, px, py, pz, pt = img.dim
     if dim == '3D':
-        return np.array(img.data), (px, py, pz), img.data.shape
+        return np.array(img.data), (px, py, pz), img.data.shape, orig_orientation
     elif dim == '2D':
         # Average middle slices to reduce noise
         nb_slice = 1
@@ -61,7 +67,7 @@ def load_nifti(path_im, dim='3D'):
         else:
             out_img = arr[ind, :, :]
         
-        return out_img, (py, pz), img.data.shape
+        return out_img, (py, pz), img.data.shape, orig_orientation
     else:
         raise ValueError(f'Unknown dimension : {dim}')
 
