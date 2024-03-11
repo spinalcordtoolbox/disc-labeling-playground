@@ -8,17 +8,6 @@ import time
 import json
 from pathlib import Path
 
-## Variables
-CONTRAST = {'t1': ['T1w'],
-            't2': ['T2w'],
-            't2s':['T2star'],
-            't1_t2': ['T1w', 'T2w'],
-            'psir': ['PSIR'],
-            'stir': ['STIR'],
-            'psir_stir': ['PSIR', 'STIR'],
-            't1_t2_psir_stir': ['T1w', 'T2w', 'PSIR', 'STIR']
-            }
-
 ## Functions
 def get_img_path_from_label_path(str_path):
     """
