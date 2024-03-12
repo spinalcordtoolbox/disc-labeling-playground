@@ -59,12 +59,12 @@ def get_cont_path_from_other_cont(str_path, cont):
     ext = ''.join(path.suffixes)
 
     # Remove input contrast from name
-    path_list = path.name.split('_')
+    path_list = path.name.split(ext)[0].split('_')
     suffixes_pos = [1 if len(part.split('-')) == 1 else 0 for part in path_list]
     contrast_idx = suffixes_pos.index(1) # Find suffix
 
     # New image name
-    img_name = '_'.join(path_list[:contrast_idx]+[cont]) + ext
+    img_name = '_'.join(path_list[:contrast_idx]+[cont]+path_list[contrast_idx+1:]) + ext
 
     # Recreate img path
     img_path = os.path.join(str(path.parent), img_name)
