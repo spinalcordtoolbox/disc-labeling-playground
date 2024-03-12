@@ -8,7 +8,7 @@ import argparse
 import subprocess
 import numpy as np
 
-from ply.data_management.utils import get_img_path_from_label_path
+from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont
 
 def get_parser():
     # parse command line arguments
@@ -17,6 +17,7 @@ def get_parser():
     parser.add_argument('--drop', action='store_true', help='If specified the paths will be dropped instead of get.')
     parser.add_argument('--fetch-img', action='store_true', help='If labels are specified and the data is following BIDS standards, using this argument will also get the corresponding images. (Default=False)')
     parser.add_argument('--clone-repos', action='store_true', help='If specified all missing repositories will be cloned. The data must be following BIDS standards. Neuropoly feature only. (Default=False)')
+    parser.add_argument('--other-cont', default='', help='If specified, this contrast will be dowloaded aswell. The data must be following BIDS standards.')
     return parser
 
 def main():
@@ -59,10 +60,27 @@ def main():
         rel_path = path.split(rep_path + '/')[-1] # Fetch relative path
         if args.fetch_img:
             img_path = get_img_path_from_label_path(rel_path)
+            if args.other_cont:
+                rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
+                img2_path = get_cont_path_from_other_cont(img_path, args.other_cont)
+                if not os.path.exists(rel2_path) or not os.path.exists(img2_path):
+                    raise ValueError(f'Error with path: {rel2_path} or {img2_path}')
+                else:
+                    subprocess.check_call([
+                        'git', '-C', rep_path, 'annex', command, rel2_path, img2_path
+                    ])
             subprocess.check_call([
                     'git', '-C', rep_path, 'annex', command, rel_path, img_path
                 ])
         else:
+            if args.other_cont:
+                rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
+                if not os.path.exists(rel2_path):
+                    raise ValueError(f'Error with path: {rel2_path}')
+                else:
+                    subprocess.check_call([
+                        'git', '-C', rep_path, 'annex', command, rel2_path
+                    ])
             subprocess.check_call([
                     'git', '-C', rep_path, 'annex', command, rel_path
                 ])
