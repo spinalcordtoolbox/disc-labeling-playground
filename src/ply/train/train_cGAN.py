@@ -8,6 +8,7 @@ import argparse
 import random
 import json
 import wandb
+import copy
 from tqdm import tqdm
 
 import torch
@@ -38,7 +39,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Convert BIDS-structured dataset to nnUNetV2 database format.')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--contrast', type=str, default='T1w', help='Input contrast that will be used for training (default="T1w").')
-    parser.add_argument('--batch-size', type=int, default=1, help='Training batch size (default=3).')
+    parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=200, help='Number of training epochs (default=200).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
@@ -198,10 +199,10 @@ def main():
                 kernel_size=3).to(device)
     
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, feature_size=16, kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128], kernel_size=[3,3,3]).to(device)
 
     # Init criterion
-    BCE_LOSS = torch.nn.BCELoss()
+    BCE_LOSS = torch.nn.BCEWithLogitsLoss()
     L1_LOSS = torch.nn.L1Loss()
     torch.backends.cudnn.benchmark = True
 
@@ -210,6 +211,8 @@ def main():
     g_lr = 0.0025 # generator learning rate
     optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
     optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.5, 0.999))
+    g_scaler = torch.cuda.amp.GradScaler()
+    d_scaler = torch.cuda.amp.GradScaler()
 
     # 🐝 Initialize wandb run
     wandb.init(project=f'cGAN-{in_contrast}2{out_contrast}', config=vars(args))
@@ -223,66 +226,55 @@ def main():
     wandb.log_artifact(artifact_script)
 
     # start a typical PyTorch training
-    gen_loss = np.inf
+    val_loss = np.inf
     for epoch in range(args.start_epoch, args.nb_epochs):
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
-        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, L1_LOSS, optimizerG, optimizerD, device)
+        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, L1_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, device)
 
-        if wandb_mode:
-            # 🐝 Plot G_loss
-            wandb.log({"Gloss_train/epoch": train_Gloss})
-
-            # 🐝 Plot D_loss
-            wandb.log({"Dloss_train/epoch": train_Dloss})
-            
-            # 🐝 Plot discriminator accuracy
-            wandb.log({"Dacc_train/epoch": train_Dacc})
+        # 🐝 Plot G_loss D_loss and discriminator accuracy
+        wandb.log({"Gloss_train/epoch": train_Gloss})
+        wandb.log({"Dloss_train/epoch": train_Dloss})
+        wandb.log({"Dacc_train/epoch": train_Dacc})
         
         # evaluate on validation set
         val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, BCE_LOSS, L1_LOSS, device)
 
-        if wandb_mode:
-            # 🐝 Plot G_loss
-            wandb.log({"Gloss_val/epoch": val_Gloss})
-
-            # 🐝 Plot D_loss
-            wandb.log({"Dloss_val/epoch": val_Dloss})
-            
-            # 🐝 Plot discriminator accuracy
-            wandb.log({"Dacc_val/epoch": val_Dacc})
+        # 🐝 Plot G_loss D_loss and discriminator accuracy
+        wandb.log({"Gloss_val/epoch": val_Gloss})
+        wandb.log({"Dloss_val/epoch": val_Dloss})
+        wandb.log({"Dacc_val/epoch": val_Dacc})
         
         # remember best acc and save checkpoint
-        if gen_loss > val_Gloss:
-            gen_loss = val_Gloss
+        if val_loss > val_Gloss:
+            val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
             torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
             torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}.pth')
     
-    if wandb_mode:
-        # 🐝 log best score and epoch number to wandb
-        wandb.log({"best_accuracy": best_acc, "best_accuracy_epoch": best_acc_epoch})
-    
-        # 🐝 version your model
-        best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth'
-        model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
-                                        type="model",
-                                        description=f"UNETR {in_contrast}2{out_contrast}",
-                                        metadata=vars(args)
-                                        )
-        model_artifact.add_file(best_model_path)
-        wandb.log_artifact(model_artifact)
+    # 🐝 log best score and epoch number to wandb
+    wandb.log({"best_accuracy": best_acc, "best_accuracy_epoch": best_acc_epoch})
+
+    # 🐝 version your model
+    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth'
+    model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
+                                    type="model",
+                                    description=f"UNETR {in_contrast}2{out_contrast}",
+                                    metadata=vars(args)
+                                    )
+    model_artifact.add_file(best_model_path)
+    wandb.log_artifact(model_artifact)
         
-        # 🐝 close wandb run
-        wandb.finish()
+    # 🐝 close wandb run
+    wandb.finish()
 
 
 def validate(data_loader, generator, discriminator, bce_loss, l1_loss, device):
     generator.eval()
     discriminator.eval()
-    epoch_iterator = tqdm(data_loader, desc="Validation (X / X Steps) (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
+    epoch_iterator = tqdm(data_loader, desc="Validation (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator):
             # Load input and target
@@ -292,69 +284,73 @@ def validate(data_loader, generator, discriminator, bce_loss, l1_loss, device):
             y_fake = generator(x)
 
             # Evaluate discriminator
-            D_real = discriminator(x, y)
-            D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
-            D_fake = discriminator(x, y_fake.detach())
-            D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
-            D_loss = (D_real_loss + D_fake_loss) / 2
+            with torch.cuda.amp.autocast():
+                D_real = discriminator(x, y)
+                D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
+                D_fake = discriminator(x, y_fake.detach())
+                D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
+                D_loss = (D_real_loss + D_fake_loss) / 2
 
             acc_real = D_real.mean().item() 
             acc_fake = 1.0 - D_fake.mean().item() 
             acc = (acc_real + acc_fake) / 2.0
 
             # Evaluate generator
-            # D_fake = discriminator(x, y_fake)
-            G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
-            L1 = l1_loss(y_fake, y) * 1
-            G_loss = G_fake_loss + L1
+            with torch.cuda.amp.autocast():
+                D_fake = discriminator(x, y_fake)
+                G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
+                L1 = l1_loss(y_fake, y) * 1
+                G_loss = G_fake_loss + L1
 
             epoch_iterator.set_description(
-                "Validation (%d / %d Steps ) (G_loss=%2.5f) (D_loss=%2.5f) (ACC=%2.5f)" % (step, len(data_loader), G_loss.mean().item(), D_loss.mean().item(), acc)
+                "Validation (G_loss=%2.5f) (D_loss=%2.5f) (ACC=%2.5f)" % (G_loss.mean().item(), D_loss.mean().item(), acc)
             )
 
     return G_loss.mean().item(), D_loss.mean().item(), acc
 
 
-def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, optimizerD, device):
+def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, optimizerD, g_scaler, d_scaler, device):
     generator.train()
     discriminator.train()
     R, S, P = [], [], []
-    epoch_iterator = tqdm(data_loader, desc="Training (X / X Steps) (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
+    epoch_iterator = tqdm(data_loader, desc="Training (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
 
-        # Get output from generator
-        y_fake = generator(x)
-        # Train discriminator
-        D_real = discriminator(x, y)
-        D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
-        D_fake = discriminator(x, y_fake.detach())
-        D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
-        D_loss = (D_real_loss + D_fake_loss) / 2
+        with torch.cuda.amp.autocast():
+            # Get output from generator
+            y_fake = generator(x)
+            # Train discriminator
+            D_real = discriminator(x, y)
+            D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
+            D_fake = discriminator(x, y_fake.detach())
+            D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
+            D_loss = (D_real_loss + D_fake_loss) / 2
 
         discriminator.zero_grad()
-        optimizerD.scale(D_loss).backward()
-        optimizerD.step()
-        optimizerD.update()
+        d_scaler.scale(D_loss).backward()
+        d_scaler.step(optimizerD)
+        d_scaler.update()
 
         acc_real = D_real.mean().item() 
         acc_fake = 1.0 - D_fake.mean().item() 
         acc = (acc_real + acc_fake) / 2.0
         
-        # Train generator
-        # D_fake = discriminator(x, y_fake)
-        G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
-        L1 = l1_loss(y_fake, y) * 1
-        G_loss = G_fake_loss + L1
+        with torch.cuda.amp.autocast():
+            # Train generator
+            D_fake = discriminator(x, y_fake)
+            G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
+            L1 = l1_loss(y_fake, y) * 1
+            G_loss = G_fake_loss + L1
 
         generator.zero_grad()
-        optimizerG.scale(G_loss).backward()
-        optimizerG.step()
-        optimizerG.update()
+        g_scaler.scale(G_loss).backward()
+        g_scaler.step(optimizerG)
+        g_scaler.update()
 
         epoch_iterator.set_description(
-            "Training (%d / %d Steps ) (G_loss=%2.5f) (D_loss=%2.5f)" % (step, len(data_loader), G_loss.mean().item(), D_loss.mean().item())
+            "Training (G_loss=%2.5f) (D_loss=%2.5f)" % (G_loss.mean().item(), D_loss.mean().item())
         )
 
     return G_loss.mean().item(), D_loss.mean().item(), acc
