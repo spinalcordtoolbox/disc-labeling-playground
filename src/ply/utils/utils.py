@@ -1,6 +1,5 @@
 import os
 import subprocess
-from progress.bar import Bar
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -35,7 +34,7 @@ def apply_preprocessing(img_path, dim):
 
 
 ##
-def registerNcrop(in_path, dest_path, dest_sc_path, derivatives_folder):
+def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_folder):
     '''
     Crop and register two images for training
     '''
@@ -43,54 +42,134 @@ def registerNcrop(in_path, dest_path, dest_sc_path, derivatives_folder):
     dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
     in_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
     dest_folder = os.path.join(derivatives_folder, dest_subjectID, dest_sessionID, dest_contrast)
-    out_reg = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    in_reg_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    in_ones = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones_reg = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
     for_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
     inv_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
-    if not os.path.exists(out_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
-        # Register input_image to destination_image
-        subprocess.check_call(['sct_register_multimodal',
+    qc_path = os.path.join(derivatives_folder, 'qc')
+
+    input_crop_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
+    sc_intersection_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_SCintersec' + '.nii.gz')
+
+    # Create directories
+    if not os.path.exists(in_folder):
+        os.makedirs(in_folder)
+    
+    if not os.path.exists(dest_folder):
+        os.makedirs(dest_folder)
+    
+    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+        if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
+            # Set image orientation to RSP
+            out=subprocess.run(['sct_image',
+                                    '-i', in_path,
+                                    '-setorient', 'RSP'])
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            out=subprocess.run(['sct_image',
+                                    '-i', in_sc_path,
+                                    '-setorient', 'RSP'])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            out=subprocess.run(['sct_image',
+                                    '-i', dest_sc_path,
+                                    '-setorient', 'RSP'])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            out=subprocess.run(['sct_image',
+                                    '-i', dest_path,
+                                    '-setorient', 'RSP'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Create a coverage mask with ones where the spinal cord is present
+            out=subprocess.run(['sct_create_mask',
+                                '-i', in_path,
+                                '-o', in_ones,
+                                '-size', '500',
+                                '-p', f'centerline,{in_sc_path}'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            # Register input_image to destination_image
+            out=subprocess.run(['sct_register_multimodal',
                                 '-i', in_path,
                                 '-d', dest_path,
-                                '-o', out_reg,
+                                '-iseg', in_sc_path,
+                                '-dseg', dest_sc_path,
+                                '-param', 'step=1,type=seg,algo=centermass',
+                                '-qc', qc_path,
+                                '-qc-subject', in_subjectID,
+                                '-o', in_reg_path,
                                 '-owarp', for_warp_path,
-                                '-owarpinv', inv_warp_path,
-                                '-identity', '1'])
-    
-    input_crop_path = os.path.join(in_folder, filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    mask_path = os.path.join(ofolder, filename.split('.nii.gz')[0] + '_SCmask' + '.nii.gz')
-    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+                                '-owarpinv', inv_warp_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Bring coverage to destination space
+            out=subprocess.run(['sct_apply_transfo',
+                                '-i', in_ones,
+                                '-d', dest_path,
+                                '-w', for_warp_path,
+                                '-x', 'linear',
+                                '-o', in_ones_reg])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+        
         if not os.path.exists(mask_path):
+            # Multiply SC seg to extract the common ground between the 2 images
+            out=subprocess.run(['sct_maths',
+                                    '-i', dest_sc_path,
+                                    '-mul', in_ones_reg,
+                                    '-o', sc_intersection_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
             # Create spinalcord mask for cropping see https://spinalcordtoolbox.com/user_section/tutorials/multimodal-registration/contrast-agnostic-registration/preprocessing-t2.html#creating-a-mask-around-the-spinal-cord
-            subprocess.check_call(['sct_create_mask',
-                                    '-i', out_reg,
-                                    '-p', f'centerline,{dest_sc_path}',
-                                    '-size', '50mm',
+            out=subprocess.run(['sct_create_mask',
+                                    '-i', in_reg_path,
+                                    '-p', f'centerline,{sc_intersection_path}',
+                                    '-size', '70mm',
                                     '-f', 'cylinder',
                                     '-o', mask_path])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+        
         # Crop registered contrast
-        subprocess.check_call(['sct_crop_image',
-                                '-i', out_reg,
+        out=subprocess.run(['sct_crop_image',
+                                '-i', in_reg_path,
                                 '-m', mask_path,
                                 '-o', input_crop_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+
         # Crop dest contrast
-        subprocess.check_call(['sct_crop_image',
+        out=subprocess.run(['sct_crop_image',
                                 '-i', dest_path,
                                 '-m', mask_path,
                                 '-o', dest_crop_path])
-        
-        # Set image orientation to RSP
-        subprocess.check_call(['sct_image',
-                                '-i', input_crop_path,
-                                '-setorient', 'RSP'])
-        
-        subprocess.check_call(['sct_image',
-                                '-i', dest_crop_path,
-                                '-setorient', 'RSP'])
+
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
 
         # TODO: find a way to crop the warping field to the same dimensions
-    
-    return input_crop_path, dest_crop_path
+    return (0, ''), input_crop_path, dest_crop_path
 
 
 ##
