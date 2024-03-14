@@ -63,7 +63,7 @@ def main():
             if args.other_cont:
                 rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
                 img2_path = get_cont_path_from_other_cont(img_path, args.other_cont)
-                if not os.path.exists(rel2_path) or not os.path.exists(img2_path):
+                if not os.path.exists(os.path.join(rep_path, rel2_path)) or not os.path.exists(os.path.join(rep_path, img2_path)):
                     raise ValueError(f'Error with path: {rel2_path} or {img2_path}')
                 else:
                     subprocess.check_call([
@@ -75,7 +75,7 @@ def main():
         else:
             if args.other_cont:
                 rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
-                if not os.path.exists(rel2_path):
+                if not os.path.exists(os.path.join(rep_path, rel2_path)):
                     raise ValueError(f'Error with path: {rel2_path}')
                 else:
                     subprocess.check_call([
