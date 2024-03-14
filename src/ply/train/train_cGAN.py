@@ -2,25 +2,30 @@ import logging
 import os
 import sys
 import shutil
-import tempfile
-import time
-import datetime
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.image as img
+import argparse
+import random
+import json
+import wandb
+from tqdm import tqdm
+
 import torch
+import torch.optim as optim
 
 import monai
 from monai.data import DataLoader, CacheDataset
-from monai.networks.nets import UNETR
+from monai.networks.nets import UNet
 from monai.transforms import (
-    AsDiscrete,
-    EnsureChannelFirst,
+    LoadImaged,
+    Orientationd,
+    EnsureChannelFirstd,
+    Spacingd,
     Compose,
-    RandRotate90,
-    Resize,
-    ScaleIntensity,
+    ResizeWithPadOrCropd,
+    RandRotate90d,
+    RandFlipd,
+    NormalizeIntensityd
 )
 
 from ply.utils.utils import tuple_type
@@ -33,7 +38,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Convert BIDS-structured dataset to nnUNetV2 database format.')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--contrast', type=str, default='T1w', help='Input contrast that will be used for training (default="T1w").')
-    parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
+    parser.add_argument('--batch-size', type=int, default=1, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=200, help='Number of training epochs (default=200).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
@@ -44,6 +49,10 @@ def get_parser():
 def main():
     parser = get_parser()
     args = parser.parse_args()
+
+    # Use cuda
+    pin_memory = torch.cuda.is_available()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     ## Set seed
     seed = 42
@@ -56,43 +65,40 @@ def main():
     # Python RNG
     np.random.seed(seed)
     random.seed(seed) 
-
-    pin_memory = torch.cuda.is_available()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Create weights folder to store training weights
-    if not os.path.exists(weight_folder):
-        os.makedirs(weight_folder)
     
     # Load config data
     # Read json file and create a dictionary
-    with open(args.config_data, "r") as file:
+    with open(args.config, "r") as file:
         config_data = json.load(file)
     
     # Load variables
     weight_folder = args.weight_folder
     in_contrast = args.contrast
-    out_contrast = config_data.CONTRASTS
+    out_contrast = config_data['CONTRASTS']
+
+    # Create weights folder to store training weights
+    if not os.path.exists(weight_folder):
+        os.makedirs(weight_folder)
 
     if len(out_contrast.split('_'))>1:
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
     
     # Load images for training and validation
     print('loading images...')
-    train_list = fetch_and_preproc_config_cGAN(
+    train_list, err_train = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
                                             cont=args.contrast,
                                             split='TRAINING'
                                             )
     
-    val_list = fetch_and_preproc_config_cGAN(
+    val_list, err_val = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
                                             cont=args.contrast,
                                             split='VALIDATION'
                                             )
     
     # Define transforms
-    crop_size = (192, 168, 60)
+    crop_size = (256, 256, 192) # RSP
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
@@ -103,7 +109,7 @@ def main():
                 pixdim=(1., 1., 1.),
                 mode=("bilinear", "nearest"),
             ),
-            #ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,), # TODO
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             #LabelToContour(kernel_type='Laplace'), # TODO
             RandFlipd(
                 keys=["image", "label"],
@@ -141,7 +147,7 @@ def main():
                 pixdim=(1., 1., 1.),
                 mode=("bilinear", "nearest"),
             ),
-            #ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,), # TODO,
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             NormalizeIntensityd(
                 keys=["image", "label"], 
                 nonzero=False, 
@@ -168,36 +174,31 @@ def main():
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=16, 
-                            pin_memory=True, 
-                            persistent_workers=True
+                            num_workers=0, 
+                            pin_memory=False, 
+                            #persistent_workers=True
                             ) 
     
     val_loader = DataLoader(
                         val_ds, 
                         batch_size=1, 
                         shuffle=False, 
-                        num_workers=16, 
-                        pin_memory=True, 
-                        persistent_workers=True
+                        num_workers=0, 
+                        pin_memory=False, 
+                        #persistent_workers=True
                         )
 
     # Create generator model
-    generator = UNETR(
-            in_channels=1,
-            out_channels=1,
-            img_size=(96, 96, 96), # TODO
-            feature_size=16,
-            hidden_size=768,
-            mlp_dim=3072,
-            num_heads=12,
-            pos_embed="perceptron",
-            norm_name="instance",
-            res_block=True,
-            dropout_rate=0.0).to(device)
+    generator = UNet(
+                spatial_dims=3,
+                in_channels=1,
+                out_channels=1,
+                channels=(16, 32, 64, 128),
+                strides=(2, 2, 2),
+                kernel_size=3).to(device)
     
     # Create Disciminator model
-    discriminator = Disciminator(feature_size=32, kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, feature_size=16, kernel_size=[3,3,3]).to(device)
 
     # Init criterion
     BCE_LOSS = torch.nn.BCELoss()
@@ -205,6 +206,8 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
+    d_lr = 0.00005 # discriminator learning rate
+    g_lr = 0.0025 # generator learning rate
     optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
     optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.5, 0.999))
 
@@ -221,8 +224,8 @@ def main():
 
     # start a typical PyTorch training
     gen_loss = np.inf
-    for epoch in range(args.start_epoch, args.epochs):
-        print('\nEpoch: %d | LR: %.8f' % (epoch + 1, lr))
+    for epoch in range(args.start_epoch, args.nb_epochs):
+        print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
         train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, L1_LOSS, optimizerG, optimizerD, device)
@@ -276,8 +279,9 @@ def main():
         wandb.finish()
 
 
-def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, device):
-    model.eval()
+def validate(data_loader, generator, discriminator, bce_loss, l1_loss, device):
+    generator.eval()
+    discriminator.eval()
     epoch_iterator = tqdm(data_loader, desc="Validation (X / X Steps) (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator):
@@ -311,46 +315,47 @@ def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, de
     return G_loss.mean().item(), D_loss.mean().item(), acc
 
 
-def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, optimizerD, epoch, device):
-    model.train()
+def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, optimizerD, device):
+    generator.train()
+    discriminator.train()
+    R, S, P = [], [], []
     epoch_iterator = tqdm(data_loader, desc="Training (X / X Steps) (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
 
-        # # Get output from generator
-        # y_fake = generator(x)
-        print(1)
-        # # Train discriminator
-        # D_real = discriminator(x, y)
-        # D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
-        # D_fake = discriminator(x, y_fake.detach())
-        # D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
-        # D_loss = (D_real_loss + D_fake_loss) / 2
+        # Get output from generator
+        y_fake = generator(x)
+        # Train discriminator
+        D_real = discriminator(x, y)
+        D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
+        D_fake = discriminator(x, y_fake.detach())
+        D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
+        D_loss = (D_real_loss + D_fake_loss) / 2
 
-        # discriminator.zero_grad()
-        # optimizerD.scale(D_loss).backward()
-        # optimizerD.step()
-        # optimizerD.update()
+        discriminator.zero_grad()
+        optimizerD.scale(D_loss).backward()
+        optimizerD.step()
+        optimizerD.update()
 
-        # acc_real = D_real.mean().item() 
-        # acc_fake = 1.0 - D_fake.mean().item() 
-        # acc = (acc_real + acc_fake) / 2.0
+        acc_real = D_real.mean().item() 
+        acc_fake = 1.0 - D_fake.mean().item() 
+        acc = (acc_real + acc_fake) / 2.0
         
-        # # Train generator
-        # # D_fake = discriminator(x, y_fake)
-        # G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
-        # L1 = l1_loss(y_fake, y) * 1
-        # G_loss = G_fake_loss + L1
+        # Train generator
+        # D_fake = discriminator(x, y_fake)
+        G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
+        L1 = l1_loss(y_fake, y) * 1
+        G_loss = G_fake_loss + L1
 
-        # generator.zero_grad()
-        # optimizerG.scale(G_loss).backward()
-        # optimizerG.step()
-        # optimizerG.update()
+        generator.zero_grad()
+        optimizerG.scale(G_loss).backward()
+        optimizerG.step()
+        optimizerG.update()
 
-        # epoch_iterator.set_description(
-        #     "Training (%d / %d Steps ) (G_loss=%2.5f) (D_loss=%2.5f)" % (step, len(data_loader), G_loss.mean().item(), D_loss.mean().item())
-        # )
+        epoch_iterator.set_description(
+            "Training (%d / %d Steps ) (G_loss=%2.5f) (D_loss=%2.5f)" % (step, len(data_loader), G_loss.mean().item(), D_loss.mean().item())
+        )
 
     return G_loss.mean().item(), D_loss.mean().item(), acc
     
