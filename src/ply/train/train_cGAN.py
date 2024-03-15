@@ -250,9 +250,6 @@ def main():
             torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
             torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}.pth')
-    
-    # 🐝 log best score and epoch number to wandb
-    wandb.log({"best_accuracy": best_acc, "best_accuracy_epoch": best_acc_epoch})
 
     # 🐝 version your model
     best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth'
