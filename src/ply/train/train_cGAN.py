@@ -32,6 +32,7 @@ from monai.transforms import (
 from ply.utils.utils import tuple_type
 from ply.models.discriminator import Discriminator
 from ply.utils.load_config import fetch_and_preproc_config_cGAN
+from ply.utils.plot import get_validation_image
 
 
 def get_parser():
@@ -301,6 +302,15 @@ def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, al
             epoch_iterator.set_description(
                 "Validation (G_loss=%2.5f) (D_loss=%2.5f) (ACC=%2.5f)" % (G_loss.mean().item(), D_loss.mean().item(), acc)
             )
+
+            # Display first image
+            if step == 0:
+                res_img, target_img, pred_img = get_validation_image(x, y, y_fake)
+
+                # 🐝 log visuals for the first validation batch only in wandb
+                wandb.log({"validation_img/batch_1": wandb.Image(res_img, caption=f'res_{epoch}')})
+                wandb.log({"validation_img/groud_truth": wandb.Image(target_img, caption=f'ground_truth_{epoch}')})
+                wandb.log({"validation_img/prediction": wandb.Image(pred_img, caption=f'prediction_{epoch}')})
 
     return G_loss.mean().item(), D_loss.mean().item(), acc
 
