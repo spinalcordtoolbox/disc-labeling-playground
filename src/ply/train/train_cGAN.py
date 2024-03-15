@@ -172,18 +172,18 @@ def main():
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=0, 
-                            pin_memory=False, 
-                            #persistent_workers=True
+                            num_workers=4, 
+                            pin_memory=True, 
+                            persistent_workers=True
                             ) 
     
     val_loader = DataLoader(
                         val_ds, 
-                        batch_size=1, 
+                        batch_size=args.batch_size, 
                         shuffle=False, 
-                        num_workers=0, 
-                        pin_memory=False, 
-                        #persistent_workers=True
+                        num_workers=4, 
+                        pin_memory=True, 
+                        persistent_workers=True
                         )
 
     # Create generator model
