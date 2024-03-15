@@ -106,7 +106,7 @@ def main():
         [
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="RSP"),
+            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
                 keys=["image", "label"],
                 pixdim=(1., 1., 1.),
@@ -139,7 +139,7 @@ def main():
         [
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="RSP"),
+            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
                 keys=["image", "label"],
                 pixdim=(1., 1., 1.),
