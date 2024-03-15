@@ -40,7 +40,7 @@ def get_parser():
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--contrast', type=str, default='T1w', help='Input contrast that will be used for training (default="T1w").')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
-    parser.add_argument('--nb-epochs', type=int, default=200, help='Number of training epochs (default=200).')
+    parser.add_argument('--nb-epochs', type=int, default=500, help='Number of training epochs (default=500).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
