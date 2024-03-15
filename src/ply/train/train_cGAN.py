@@ -100,7 +100,7 @@ def main():
                                             )
     
     # Define transforms
-    crop_size = (256, 256, 192) # RSP
+    crop_size = (192, 256, 192) # RSP
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
