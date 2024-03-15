@@ -190,12 +190,12 @@ def main():
                 spatial_dims=3,
                 in_channels=1,
                 out_channels=1,
-                channels=(16, 32, 64, 128),
+                channels=(16, 32, 64, 128, 256),
                 strides=(2, 2, 2),
                 kernel_size=3).to(device)
     
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128], kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128, 256], kernel_size=[3,3,3]).to(device)
 
     # Init criterion
     BCE_LOSS = torch.nn.BCEWithLogitsLoss()
