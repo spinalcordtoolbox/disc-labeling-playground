@@ -167,8 +167,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# txt files
+# files
 *.txt
+*.png
 
 # Model weights
 weights/
