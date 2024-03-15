@@ -34,7 +34,7 @@ def apply_preprocessing(img_path, dim):
 
 
 ##
-def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_folder):
+def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_folder, qc=False):
     '''
     Crop and register two images for training
     '''
@@ -169,6 +169,21 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
             return (1, " ".join(out.args)), '', ''
 
         # TODO: find a way to crop the warping field to the same dimensions
+    else:
+        if qc:
+            dest_sc_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_sc_crop' + '.nii.gz')
+            if not os.path.exists(dest_sc_crop_path):
+                subprocess.check_call(['sct_crop_image',
+                                '-i', dest_sc_path,
+                                '-m', mask_path,
+                                '-o', dest_sc_crop_path])
+            
+            subprocess.check_call(['sct_qc',
+                                    '-i', in_reg_path,
+                                    '-d', dest_crop_path,
+                                    '-s', dest_sc_crop_path,
+                                    '-p', 'sct_register_multimodal',
+                                    '-qc', qc_path])
     return (0, ''), input_crop_path, dest_crop_path
 
 
