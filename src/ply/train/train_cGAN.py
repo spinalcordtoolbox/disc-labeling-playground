@@ -128,11 +128,6 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            RandRotate90d(
-                keys=["image", "label"],
-                prob=0.10,
-                max_k=3,
-            ),
             NormalizeIntensityd(
                 keys=["image", "label"], 
                 nonzero=False, 
