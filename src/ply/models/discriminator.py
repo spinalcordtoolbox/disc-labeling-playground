@@ -57,6 +57,5 @@ class Discriminator(nn.Module):
         x = torch.cat([x, y], dim=1)
         x = self.initial(x)
         x = self.model(x)
-        #x = torch.sigmoid(x)
         
         return x.squeeze()
