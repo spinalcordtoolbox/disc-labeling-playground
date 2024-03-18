@@ -15,7 +15,7 @@ import torch
 import torch.optim as optim
 
 import monai
-from monai.data import DataLoader, CacheDataset
+from monai.data import DataLoader, CacheDataset, Dataset, decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     LoadImaged,
@@ -23,10 +23,10 @@ from monai.transforms import (
     EnsureChannelFirstd,
     Spacingd,
     Compose,
+    NormalizeIntensityd,
     ResizeWithPadOrCropd,
-    RandRotate90d,
-    RandFlipd,
-    NormalizeIntensityd
+    Invertd,
+    EnsureTyped
 )
 
 from ply.data_management.utils import fetch_subject_and_session
@@ -83,26 +83,38 @@ def main():
                                             cont=args.contrast,
                                             split='TESTING'
                                             )
-    
+    img_list = [{'image':d['image']} for d in test_list]
+
     # Define test transforms
     crop_size = (192, 256, 192) # RSP or LIA
     test_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+            LoadImaged(keys=["image"]),
+            EnsureChannelFirstd(keys=["image"]),
+            Orientationd(keys=["image"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
-                keys=["image", "label"],
+                keys=["image"],
                 pixdim=(1., 1., 1.),
-                mode=("bilinear", "nearest"),
+                mode=("bilinear"),
             ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+            ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
+            NormalizeIntensityd(
+                keys=["image"], 
+                nonzero=False, 
+                channel_wise=False),
         ]
     )
 
+    inv_transforms = Compose([
+                EnsureTyped(keys=["pred"]),
+                Invertd(keys=["pred"], transform=test_transforms, 
+                        orig_keys=["image"], 
+                        nearest_interp=False, to_tensor=True),
+        ])
+
     # Define test dataset
     test_ds = CacheDataset(
-                            data=test_list,
+                            data=img_list,
                             transform=test_transforms,
                             cache_rate=0.25,
                             num_workers=4,
@@ -154,20 +166,11 @@ def main():
             os.makedirs(out_folder)
 
         # Transform output to its original shape/resolution
-        y_fake = y_fake.data.cpu()[0]
-        transform_dict = {"image":y_fake}
-        out_transforms = Compose(
-        [
-            Spacingd(
-                keys=["image"],
-                pixdim=(px, py, pz),
-                #mode=("bilinear", "nearest"),
-            ),
-            ResizeWithPadOrCropd(keys=["image"], spatial_size=(nx, ny, nz),),
-        ]
-        )
-        transform_out = out_transforms(transform_dict)
-        out_fake = transform_out["image"].numpy()
+        y_fake = y_fake.data.cpu()
+        batch["pred"] = y_fake
+
+        batch = [inv_transforms(i) for i in decollate_batch(batch)][0]
+        out_fake = batch["pred"].numpy()[0]
 
         # Save output
         out_fname = os.path.basename(test_list[step]["label"]).split('.nii.gz')[0] + '_desc-fake.nii.gz' # Create filename
