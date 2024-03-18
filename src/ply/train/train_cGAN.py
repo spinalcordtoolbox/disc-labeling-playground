@@ -30,6 +30,7 @@ from monai.transforms import (
 )
 
 from ply.utils.utils import tuple_type
+from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
 from ply.utils.load_config import fetch_and_preproc_config_cGAN
 from ply.utils.plot import get_validation_image
@@ -44,6 +45,9 @@ def get_parser():
     parser.add_argument('--nb-epochs', type=int, default=500, help='Number of training epochs (default=500).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
+    parser.add_argument('--g-lr', default=2.5e-3, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-3)')
+    parser.add_argument('--d-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-3)')
+    parser.add_argument('--schedule', type=tuple_type, default=(0.75, 0.85), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.75, 0.85))')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
                         help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
     return parser
@@ -54,7 +58,6 @@ def main():
     args = parser.parse_args()
 
     # Use cuda
-    pin_memory = torch.cuda.is_available()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     ## Set seed
@@ -79,12 +82,12 @@ def main():
     in_contrast = args.contrast
     out_contrast = config_data['CONTRASTS']
 
+    if len(out_contrast.split('_'))>1:
+        raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
+
     # Create weights folder to store training weights
     if not os.path.exists(weight_folder):
         os.makedirs(weight_folder)
-
-    if len(out_contrast.split('_'))>1:
-        raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
     
     # Load images for training and validation
     print('loading images...')
@@ -204,8 +207,8 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
-    d_lr = 0.00005 # discriminator learning rate
-    g_lr = 0.0025 # generator learning rate
+    d_lr = args.d_lr  # discriminator learning rate
+    g_lr = args.g_lr  # generator learning rate
     optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
     optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.5, 0.999))
     g_scaler = torch.cuda.amp.GradScaler()
@@ -225,6 +228,11 @@ def main():
     # start a typical PyTorch training
     val_loss = np.inf
     for epoch in range(args.start_epoch, args.nb_epochs):
+        # Adjust learning rate
+        if epoch in [round(frac*args.nb_epochs) for frac in args.schedule]:
+            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.5)
+            # d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.5)
+
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
@@ -234,6 +242,7 @@ def main():
         wandb.log({"Gloss_train/epoch": train_Gloss})
         wandb.log({"Dloss_train/epoch": train_Dloss})
         wandb.log({"Dacc_train/epoch": train_Dacc})
+        wandb.log({"training_lr/epoch": g_lr})
         
         # evaluate on validation set
         val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, BCE_LOSS, L1_LOSS, epoch, args.alpha, device)
