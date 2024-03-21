@@ -255,12 +255,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth')
+            torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}.pth')
+            torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth')
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}.pth'
+    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth'
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",
