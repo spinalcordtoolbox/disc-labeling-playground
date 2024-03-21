@@ -16,7 +16,7 @@ import torch.optim as optim
 
 import monai
 from monai.data import DataLoader, CacheDataset, Dataset, decollate_batch
-from monai.networks.nets import UNet
+from monai.networks.nets import UNet, AttentionUnet
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -25,6 +25,7 @@ from monai.transforms import (
     Compose,
     NormalizeIntensityd,
     ResizeWithPadOrCropd,
+    LabelToContourd,
     Invertd,
     EnsureTyped
 )
@@ -86,7 +87,8 @@ def main():
     img_list = [{'image':d['image']} for d in test_list]
 
     # Define test transforms
-    crop_size = (192, 256, 192) # RSP or LIA
+    crop_size = (64, 256, 160) # RSP
+    pixdim=(1, 1, 1)
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
@@ -98,6 +100,7 @@ def main():
                 mode=("bilinear"),
             ),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
+            LabelToContourd(keys=["image"], kernel_type='Laplace'),
             NormalizeIntensityd(
                 keys=["image"], 
                 nonzero=False, 
@@ -131,7 +134,7 @@ def main():
                             )
 
     # Create generator model
-    generator = UNet(
+    generator = AttentionUnet(
                 spatial_dims=3,
                 in_channels=1,
                 out_channels=1,
