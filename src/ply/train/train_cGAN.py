@@ -26,6 +26,7 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     RandRotate90d,
     RandFlipd,
+    LabelToContourd,
     NormalizeIntensityd
 )
 
@@ -116,7 +117,7 @@ def main():
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            #LabelToContour(kernel_type='Laplace'), # TODO
+            LabelToContourd(keys=["image"], kernel_type='Laplace'),
             RandFlipd(
                 keys=["image", "label"],
                 spatial_axis=[0],
@@ -149,10 +150,7 @@ def main():
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            NormalizeIntensityd(
-                keys=["image", "label"], 
-                nonzero=False, 
-                channel_wise=False)
+            LabelToContourd(keys=["image"], kernel_type='Laplace'),
         ]
     )
 
