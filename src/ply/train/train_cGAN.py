@@ -33,6 +33,7 @@ from monai.transforms import (
 from ply.utils.utils import tuple_type
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
+from ply.models.criterion import CriterionCGAN
 from ply.utils.load_config import fetch_and_preproc_config_cGAN
 from ply.utils.plot import get_validation_image
 
@@ -201,7 +202,7 @@ def main():
 
     # Init criterion
     BCE_LOSS = torch.nn.BCEWithLogitsLoss()
-    L1_LOSS = torch.nn.L1Loss()
+    FEATURE_LOSS = CriterionCGAN(dim=3, L1coeff=args.alpha, SSIMcoeff=100)
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
@@ -234,7 +235,7 @@ def main():
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
-        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, L1_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, args.alpha, device)
+        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         wandb.log({"Gloss_train/epoch": train_Gloss})
@@ -243,7 +244,7 @@ def main():
         wandb.log({"training_lr/epoch": g_lr})
         
         # evaluate on validation set
-        val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, BCE_LOSS, L1_LOSS, epoch, args.alpha, device)
+        val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, epoch, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         wandb.log({"Gloss_val/epoch": val_Gloss})
@@ -272,7 +273,7 @@ def main():
     wandb.finish()
 
 
-def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, alpha, device):
+def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoch, device):
     generator.eval()
     discriminator.eval()
     epoch_iterator = tqdm(data_loader, desc="Validation (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
@@ -300,8 +301,8 @@ def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, al
             with torch.cuda.amp.autocast():
                 D_fake = discriminator(x, y_fake)
                 G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
-                L1 = l1_loss(y_fake, y) * alpha
-                G_loss = G_fake_loss + L1
+                f_loss = feature_loss(y_fake, y)
+                G_loss = G_fake_loss + f_loss
 
             epoch_iterator.set_description(
                 "Validation (G_loss=%2.5f) (D_loss=%2.5f) (ACC=%2.5f)" % (G_loss.mean().item(), D_loss.mean().item(), acc)
@@ -319,7 +320,7 @@ def validate(data_loader, generator, discriminator, bce_loss, l1_loss, epoch, al
     return G_loss.mean().item(), D_loss.mean().item(), acc
 
 
-def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, optimizerD, g_scaler, d_scaler, alpha, device):
+def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, device):
     generator.train()
     discriminator.train()
     R, S, P = [], [], []
@@ -327,7 +328,7 @@ def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, 
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
-
+        
         with torch.cuda.amp.autocast():
             # Get output from generator
             y_fake = generator(x)
@@ -351,8 +352,8 @@ def train(data_loader, generator, discriminator, bce_loss, l1_loss, optimizerG, 
             # Train generator
             D_fake = discriminator(x, y_fake)
             G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
-            L1 = l1_loss(y_fake, y) * alpha
-            G_loss = G_fake_loss + L1
+            f_loss = feature_loss(y_fake, y)
+            G_loss = G_fake_loss + f_loss
 
         generator.zero_grad()
         g_scaler.scale(G_loss).backward()
