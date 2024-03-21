@@ -106,7 +106,20 @@ def main():
                                             )
     
     # Define transforms
-    crop_size = (192, 256, 192) # RSP
+    # Max with pixdim=(0.5, 0.5, 0.5)
+    # R max =  102
+    # S max =  446
+    # P max =  284
+    # Max with pixdim=(0.7, 0.7, 0.7)
+    # R max =  73
+    # S max =  319
+    # P max =  203
+    # Max with pixdim=(1, 1, 1)
+    # R max =  51
+    # S max =  223
+    # P max =  143
+    crop_size = (64, 256, 160) # RSP
+    pixdim=(1, 1, 1)
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
@@ -114,7 +127,7 @@ def main():
             Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
                 keys=["image", "label"],
-                pixdim=(1., 1., 1.),
+                pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
@@ -147,7 +160,7 @@ def main():
             Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
                 keys=["image", "label"],
-                pixdim=(1., 1., 1.),
+                pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
