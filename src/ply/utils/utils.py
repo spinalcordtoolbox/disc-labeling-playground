@@ -1,5 +1,7 @@
 import os
 import subprocess
+import shutil
+import tempfile
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -32,6 +34,24 @@ def apply_preprocessing(img_path, dim):
     image = image.astype(np.float32)
     return image, res_image, image_in.shape
 
+##
+def cropWithSC(in_path, in_sc_path, tmpdir):
+    # Create mask using the SC centerline
+    temp_mask_path = os.path.join(tmpdir, 'mask.nii.gz')
+    subprocess.checkcall(['sct_create_mask',
+                        '-i', in_path,
+                        '-p', f'centerline,{in_sc_path}',
+                        '-size', '70mm',
+                        '-f', 'cylinder',
+                        '-o', temp_mask_path])
+    
+    # Crop using the created mask
+    temp_in_crop_path = os.path.join(tmpdir, os.path.basename(in_path).split('.nii.gz')[0] + '_desc-crop.nii.gz')
+    subprocess.run(['sct_crop_image',
+                    '-i', in_path,
+                    '-m', temp_mask_path,
+                    '-o', temp_in_crop_path])
+    return temp_in_crop_path
 
 ##
 def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_folder, qc=False):
@@ -241,3 +261,14 @@ def tuple_type(strings):
     strings = strings.replace("(", "").replace(")", "")
     mapped_int = map(int, strings.split(","))
     return tuple(mapped_int)
+
+
+##
+def tmp_create(basename):
+    """Create temporary folder and return its path
+    Based on https://github.com/spinalcordtoolbox/spinalcordtoolbox/
+    """
+    prefix = f"{basename}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    tmpdir = tempfile.mkdtemp(prefix=prefix)
+    logger.info(f"Creating temporary folder ({tmpdir})")
+    return tmpdir
