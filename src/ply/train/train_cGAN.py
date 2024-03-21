@@ -16,7 +16,7 @@ import torch.optim as optim
 
 import monai
 from monai.data import DataLoader, CacheDataset
-from monai.networks.nets import UNet
+from monai.networks.nets import UNet, AttentionUnet
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -190,7 +190,7 @@ def main():
                         )
 
     # Create generator model
-    generator = UNet(
+    generator = AttentionUnet(
                 spatial_dims=3,
                 in_channels=1,
                 out_channels=1,
