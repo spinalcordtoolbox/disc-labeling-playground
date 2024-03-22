@@ -37,7 +37,7 @@ from ply.utils.image import Image, zeros_like
 
 def get_parser():
     # parse command line arguments
-    parser = argparse.ArgumentParser(description='Convert BIDS-structured dataset to nnUNetV2 database format.')
+    parser = argparse.ArgumentParser(description='Run cGAN inference with a config file')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--contrast', type=str, default='T1w', help='Input contrast that was used for training (default="T1w").')
     parser.add_argument('--weight-path', required=True, type=str, help='Path to the network weights. (default="src/ply/weights/3DGAN")')

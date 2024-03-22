@@ -37,7 +37,7 @@ from ply.utils.image import Image, zeros_like
 
 def get_parser():
     # parse command line arguments
-    parser = argparse.ArgumentParser(description='Convert BIDS-structured dataset to nnUNetV2 database format.')
+    parser = argparse.ArgumentParser(description='Run cGAN inference on a single subject')
     parser.add_argument('--path-in', type=str, required=True, help='Path to the input image (Required)')
     parser.add_argument('--path-seg', type=str, required=True, help='Path to the input spinal cord segmentation (Required)')
     parser.add_argument('--path-out', type=str, default='', help='Output path after inference: (Default= --path-in folder)')
