@@ -1,5 +1,5 @@
 """
-Script copied from https://github.com/spinalcordtoolbox/disc-labeling-hourglass
+Script based on https://github.com/spinalcordtoolbox/disc-labeling-hourglass
 """
 
 import os
@@ -15,9 +15,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='GET or DROP data from git-annex servers. A data config file must be specified.')
     parser.add_argument('--config', required=True, help='Config JSON file where every image used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--drop', action='store_true', help='If specified the paths will be dropped instead of get.')
-    parser.add_argument('--fetch-img', action='store_true', help='If labels are specified and the data is following BIDS standards, using this argument will also get the corresponding images. (Default=False)')
     parser.add_argument('--clone-repos', action='store_true', help='If specified all missing repositories will be cloned. The data must be following BIDS standards. Neuropoly feature only. (Default=False)')
-    parser.add_argument('--other-cont', default='', help='If specified, this contrast will be dowloaded aswell. The data must be following BIDS standards.')
     return parser
 
 def main():
@@ -28,16 +26,12 @@ def main():
     with open(args.config, "r") as file:
         config = json.load(file)
     
-    # Check for errors with the aguments
-    if config['TYPE'] != 'LABEL' and args.fetch_img:
-        raise ValueError('Type error: please specify LABEL paths to use the argument --fetch-img')
-    
-    # Group all the paths
-    if 'DATASETS_PATH' in config.keys():
-        config['TRAINING'] = [os.path.join(config['DATASETS_PATH'], rel_path) for rel_path in config['TRAINING']]
-        config['VALIDATION'] = [os.path.join(config['DATASETS_PATH'], rel_path) for rel_path in config['VALIDATION']]
-        config['TESTING'] = [os.path.join(config['DATASETS_PATH'], rel_path) for rel_path in config['TESTING']]
-    paths_to_process = config['TRAINING'] + config['VALIDATION'] + config['TESTING']
+    # Fetch paths from dictionaries
+    paths_to_process = []
+    for key in ['TRAINING', 'VALIDATION', 'TESTING']:
+        for d in config[key]:
+            for rel_path in d.values():
+                paths_to_process.append(os.path.join(config['DATASETS_PATH'], rel_path))
 
     # Extract BIDS repositories path
     repositories_path_list = np.unique([path.split('/derivatives')[0].split('/sub')[0] for path in paths_to_process]) # Splits with /sub and /derivatives to handle both image path and label path
@@ -58,32 +52,9 @@ def main():
     for path in paths_to_process:
         rep_path = path.split('/derivatives')[0].split('/sub')[0] # Fetch repository path
         rel_path = path.split(rep_path + '/')[-1] # Fetch relative path
-        if args.fetch_img:
-            img_path = get_img_path_from_label_path(rel_path)
-            if args.other_cont:
-                rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
-                img2_path = get_cont_path_from_other_cont(img_path, args.other_cont)
-                if not os.path.exists(os.path.join(rep_path, rel2_path)) or not os.path.exists(os.path.join(rep_path, img2_path)):
-                    raise ValueError(f'Error with path: {rel2_path} or {img2_path}')
-                else:
-                    subprocess.check_call([
-                        'git', '-C', rep_path, 'annex', command, rel2_path, img2_path
-                    ])
-            subprocess.check_call([
-                    'git', '-C', rep_path, 'annex', command, rel_path, img_path
-                ])
-        else:
-            if args.other_cont:
-                rel2_path = get_cont_path_from_other_cont(rel_path, args.other_cont)
-                if not os.path.exists(os.path.join(rep_path, rel2_path)):
-                    raise ValueError(f'Error with path: {rel2_path}')
-                else:
-                    subprocess.check_call([
-                        'git', '-C', rep_path, 'annex', command, rel2_path
-                    ])
-            subprocess.check_call([
-                    'git', '-C', rep_path, 'annex', command, rel_path
-                ])
+        subprocess.check_call([
+                'git', '-C', rep_path, 'annex', command, rel_path
+            ])
 
                 
 
