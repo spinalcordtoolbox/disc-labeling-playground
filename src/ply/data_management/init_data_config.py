@@ -1,5 +1,5 @@
 """
-Script copied from https://github.com/spinalcordtoolbox/disc-labeling-hourglass
+Script based on https://github.com/spinalcordtoolbox/disc-labeling-hourglass
 """
 
 import os
@@ -32,10 +32,12 @@ def init_data_config(args):
     elif args.type == 'CONTRAST':
         if not args.cont: # If the target contrast is not specified
             raise ValueError(f'When using the type CONTRAST, please specify the target contrast using the flag "--cont"')
-        img_paths = file_paths
-        new_contrast = args.cont
-        label_paths = [get_cont_path_from_other_cont(ip) for ip in img_paths]
-        file_paths = label_paths + img_paths
+        target_contrast = args.cont
+        label_paths_input = file_paths
+        label_paths_target = [get_cont_path_from_other_cont(lp, target_contrast) for lp in label_paths_input]
+        img_paths_input = [get_img_path_from_label_path(lp) for lp in label_paths_input]
+        img_paths_target = [get_img_path_from_label_path(lp) for lp in label_paths_target]
+        file_paths = label_paths_input + label_paths_target + img_paths_input + img_paths_target
     else:
         raise ValueError(f"invalid args.type: {args.type}")
     missing_paths = [
@@ -44,10 +46,10 @@ def init_data_config(args):
     ]
     
     if missing_paths:
-        raise ValueError("missing files:\n" + '\n'.join(missing_paths))
+        raise ValueError("missing files:\n" + '\n'.join(sorted(missing_paths)))
     
     # Extract BIDS parent folder path
-    dataset_parent_path_list = ['/'.join(path.split('/sub')[0].split('/')[:-1]) for path in img_paths]
+    dataset_parent_path_list = ['/'.join(path.split('/sub')[0].split('/derivatives')[0].split('/')[:-1]) for path in file_paths]
 
     # Check if all the BIDS folders are stored inside the same parent repository
     if (np.array(dataset_parent_path_list) == dataset_parent_path_list[0]).all():
@@ -56,7 +58,7 @@ def init_data_config(args):
         raise ValueError('Please store all the BIDS datasets inside the same parent folder !')
 
     # Look up the right code for the set of contrasts present
-    contrasts = "_".join(tuple(sorted(set(map(fetch_contrast, img_paths)))))
+    contrasts = "_".join(tuple(sorted(set(map(fetch_contrast, file_paths)))))
 
     config = {
         'TYPE': args.type,
@@ -64,17 +66,31 @@ def init_data_config(args):
         'DATASETS_PATH': dataset_parent_path
     }
 
-    # Add target contrast when the type CONTRAST is used
-    if args.type == 'CONTRAST':
-        config['TARGET_CONTRAST'] = args.cont
-
     # Split into training, validation, and testing sets
     split_ratio = (1 - (args.split_validation + args.split_test), args.split_validation, args.split_test) # TRAIN, VALIDATION, and TEST
-    config_paths = label_paths if args.type == 'LABEL' else img_paths
-    config_paths = [path.split(dataset_parent_path + '/')[-1] for path in config_paths] # Remove DATASETS_PATH
+    
+    if args.type == 'LABEL':
+        config_paths = []
+        for lp, ip in zip(label_paths, img_paths):
+            config_paths.append({
+                'IMAGE':ip.split(dataset_parent_path + '/')[-1], # Remove DATASETS_PATH
+                'LABEL':lp.split(dataset_parent_path + '/')[-1]
+            })
+    elif args.type == 'CONTRAST':
+        config_paths = []
+        for img_path_input, img_path_target, label_path_input, label_path_target in zip(img_paths_input, img_paths_target, label_paths_input, label_paths_target):
+            config_paths.append({
+                'INPUT_IMAGE':img_path_input.split(dataset_parent_path + '/')[-1], # Remove DATASETS_PATH
+                'INPUT_LABEL':label_path_input.split(dataset_parent_path + '/')[-1],
+                'TARGET_IMAGE':img_path_target.split(dataset_parent_path + '/')[-1],
+                'TARGET_LABEL':label_path_target.split(dataset_parent_path + '/')[-1],
+            })
+    else:
+        config_paths = [{'IMAGE':path.split(dataset_parent_path + '/')[-1]} for path in img_paths] # Remove DATASETS_PATH
+    
     random.shuffle(config_paths)
     splits = [0] + [
-        int(len(config_paths) * ratio)
+        round(len(config_paths) * ratio)
         for ratio in itertools.accumulate(split_ratio)
     ]
     for key, (begin, end) in zip(
