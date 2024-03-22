@@ -22,15 +22,15 @@ def fetch_and_preproc_image_cGAN(path_in, path_seg, tmpdir):
     # Create temp_in and temp_seg
     temp_in_path = os.path.join(tmpdir, os.path.basename(path_in))
     temp_seg_path = os.path.join(tmpdir, os.path.basename(path_seg))
-    shutil.copyfile(in_path, temp_in_path)
-    shutil.copyfile(in_sc_path, temp_seg_path)
+    shutil.copyfile(path_in, temp_in_path)
+    shutil.copyfile(path_seg, temp_seg_path)
 
     # Reorient images to RSP using SCT
-    subprocess.checkcall(['sct_image',
+    subprocess.check_call(['sct_image',
                         '-i', temp_in_path,
                         '-setorient', 'RSP'])
     
-    subprocess.checkcall(['sct_image',
+    subprocess.check_call(['sct_image',
                         '-i', temp_seg_path,
                         '-setorient', 'RSP'])
     

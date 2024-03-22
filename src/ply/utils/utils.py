@@ -1,7 +1,7 @@
 import os
 import subprocess
-import shutil
 import tempfile
+import datetime
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -38,7 +38,7 @@ def apply_preprocessing(img_path, dim):
 def cropWithSC(in_path, in_sc_path, tmpdir):
     # Create mask using the SC centerline
     temp_mask_path = os.path.join(tmpdir, 'mask.nii.gz')
-    subprocess.checkcall(['sct_create_mask',
+    subprocess.check_call(['sct_create_mask',
                         '-i', in_path,
                         '-p', f'centerline,{in_sc_path}',
                         '-size', '70mm',
@@ -47,7 +47,7 @@ def cropWithSC(in_path, in_sc_path, tmpdir):
     
     # Crop using the created mask
     temp_in_crop_path = os.path.join(tmpdir, os.path.basename(in_path).split('.nii.gz')[0] + '_desc-crop.nii.gz')
-    subprocess.run(['sct_crop_image',
+    subprocess.check_call(['sct_crop_image',
                     '-i', in_path,
                     '-m', temp_mask_path,
                     '-o', temp_in_crop_path])
@@ -270,5 +270,5 @@ def tmp_create(basename):
     """
     prefix = f"{basename}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     tmpdir = tempfile.mkdtemp(prefix=prefix)
-    logger.info(f"Creating temporary folder ({tmpdir})")
+    print(f"Creating temporary folder ({tmpdir})")
     return tmpdir

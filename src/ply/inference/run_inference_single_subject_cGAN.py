@@ -33,6 +33,7 @@ from monai.transforms import (
 from ply.data_management.utils import fetch_subject_and_session
 from ply.utils.load_image import fetch_and_preproc_image_cGAN
 from ply.utils.image import Image, zeros_like
+from ply.utils.utils import tmp_create
 
 
 def get_parser():
@@ -78,9 +79,9 @@ def main():
     tmpdir = tmp_create(basename='cGAN-Preproc')
     
     # Load images for inference
-    print('-'*20)
+    print('-'*40)
     print('Loading image with preprocessing')
-    print('-'*20)
+    print('-'*40)
     img_list = fetch_and_preproc_image_cGAN(path_in=path_in, path_seg=path_seg, tmpdir=tmpdir)
 
     # Define test transforms
@@ -141,9 +142,9 @@ def main():
     generator.eval()
 
     # Start inference
-    print('-'*20)
+    print('-'*40)
     print('Starting inference')
-    print('-'*20)
+    print('-'*40)
     data_iterator = tqdm(data_loader, desc="Run inference", dynamic_ncols=True)
     for step, batch in enumerate(data_iterator):
         # Load input
@@ -176,9 +177,9 @@ def main():
         out_img.change_orientation(original_orientation)
         out_img.save(path_out)
 
-        print('-'*20)
+        print('-'*40)
         print(f'Inference done: {path_out} was created')
-        print('-'*20)
+        print('-'*40)
     
 
     # Remove tempdir
