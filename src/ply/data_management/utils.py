@@ -109,13 +109,23 @@ def fetch_subject_and_session(filename_path):
     return subjectID, sessionID, filename, contrast, echoID, acquisition
 
 
-def fetch_contrast(filename_path):
+def fetch_contrast(str_path):
     '''
     Extract MRI contrast from a BIDS-compatible filename/filepath
-    The function handles images only.
-    :param filename_path: image file path or file name. (e.g sub-001_ses-01_T1w.nii.gz)
+    :param str_path: image file path or file name. (e.g sub-001_ses-01_T1w.nii.gz)
     '''
-    return filename_path.rstrip(''.join(Path(filename_path).suffixes)).split('_')[-1]
+    # Load path
+    path = Path(str_path)
+
+    # Extract file extension
+    ext = ''.join(path.suffixes)
+
+    # Remove input contrast from name
+    path_list = path.name.split(ext)[0].split('_')
+    suffixes_pos = [1 if len(part.split('-')) == 1 else 0 for part in path_list]
+    contrast_idx = suffixes_pos.index(1) # Find first suffix
+
+    return path_list[contrast_idx]
 
 ##
 def fetch_img_paths(config_data, split='TESTING'):
