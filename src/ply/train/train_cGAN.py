@@ -94,13 +94,11 @@ def main():
     print('loading images...')
     train_list, err_train = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            cont=args.contrast,
                                             split='TRAINING'
                                             )
     
     val_list, err_val = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            cont=args.contrast,
                                             split='VALIDATION'
                                             )
     
