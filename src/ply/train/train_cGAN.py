@@ -42,7 +42,6 @@ def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
-    parser.add_argument('--contrast', type=str, default='T1w', help='Input contrast that will be used for training (default="T1w").')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=500).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
@@ -81,8 +80,8 @@ def main():
     
     # Load variables
     weight_folder = args.weight_folder
-    in_contrast = args.contrast
-    out_contrast = config_data['CONTRASTS']
+    in_contrast = config_data['CONTRASTS']
+    out_contrast = 'T2w'
 
     if len(out_contrast.split('_'))>1:
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')

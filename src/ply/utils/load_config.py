@@ -89,11 +89,9 @@ def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='T
 
 
 ##
-def fetch_and_preproc_config_cGAN(config_data, cont, split='TRAINING'):
+def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
     '''
     :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
-    :param fov: Size of the fov that will be used for training. Images bigger than this fov will be added multiple times for the training.
-    :param dim: Input dimensions that will be used for training.
     :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
     :return: out_decathlon_monai: list of dictionary with image and label paths (like monai load_decathlon_datalist)
         [
@@ -103,40 +101,37 @@ def fetch_and_preproc_config_cGAN(config_data, cont, split='TRAINING'):
     '''
 
     # Check config type to ensure that labels paths are specified and not images
-    if config_data['TYPE'] != 'LABEL':
-        raise ValueError('TYPE error: Type LABEL not detected')
+    if config_data['TYPE'] != 'CONTRAST':
+        raise ValueError('TYPE error: Type CONTRAST not detected')
     
     # Get file paths based on split
-    paths = config_data[split]
+    dict_list = config_data[split]
     
     # Init progression bar
-    bar = Bar(f'Load {split} data with pre-processing', max=len(paths))
+    bar = Bar(f'Load {split} data with pre-processing', max=len(dict_list))
     
     err = []
     out_decathlon_monai = []
-    for path in paths:
-        if 'DATASETS_PATH' in config_data.keys():
-            dest_sc_seg_path = os.path.join(config_data['DATASETS_PATH'], path)
-        else:
-            dest_sc_seg_path = path
-        in_sc_seg_path = get_cont_path_from_other_cont(dest_sc_seg_path, cont)
-        target_path = get_img_path_from_label_path(dest_sc_seg_path)
-        img_path = get_cont_path_from_other_cont(target_path, cont)
-        if not os.path.exists(img_path) or not os.path.exists(target_path) or not os.path.exists(in_sc_seg_path) or not os.path.exists(dest_sc_seg_path):
-            #raise ValueError(f'Error while loading subject\n {img_path}, {target_path}, {in_sc_seg_path} or {dest_sc_seg_path} might not exist')
-            err.append([in_sc_seg_path, 'path error'])
+    for di in dict_list:
+        input_img_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_IMAGE'])
+        input_sc_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_LABEL'])
+        target_img_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_IMAGE'])
+        target_sc_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_LABEL'])
+        if not os.path.exists(input_img_path) or not os.path.exists(target_img_path) or not os.path.exists(input_sc_path) or not os.path.exists(target_sc_path):
+            #raise ValueError(f'Error while loading subject\n {input_img_path}, {target_img_path}, {input_sc_path} or {target_sc_path} might not exist')
+            err.append([input_sc_path, 'path error'])
         else:
             # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(dest_sc_seg_path.split('derivatives')[0], 'derivatives/regNcrop')
-            errcode, img_path, target_path = registerNcrop(in_path=img_path, dest_path=target_path, in_sc_path=in_sc_seg_path, dest_sc_path=dest_sc_seg_path, derivatives_folder=derivatives_path)
+            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop')
+            errcode, img_path, target_path = registerNcrop(in_path=input_img_path, dest_path=target_img_path, in_sc_path=input_sc_path, dest_sc_path=target_sc_path, derivatives_folder=derivatives_path)
             if errcode[0] != 0:
-                err.append([in_sc_seg_path, errcode[1]])
+                err.append([input_sc_path, errcode[1]])
             # Output paths using MONAI load_decathlon_datalist format
             else:
                 out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
         
         # Plot progress
-        bar.suffix  = f'{paths.index(path)+1}/{len(paths)}'
+        bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
         bar.next()
     bar.finish()
     return out_decathlon_monai, err
