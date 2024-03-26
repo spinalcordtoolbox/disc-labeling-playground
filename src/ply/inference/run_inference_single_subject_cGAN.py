@@ -94,7 +94,7 @@ def main():
             Orientationd(keys=["image"], axcodes="LIA"), # RSP --> LIA
             Spacingd(
                 keys=["image"],
-                pixdim=(1., 1., 1.),
+                pixdim=pixdim,
                 mode=("bilinear"),
             ),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
@@ -177,13 +177,13 @@ def main():
         out_img.change_orientation(original_orientation)
         out_img.save(path_out)
 
-        print('-'*40)
-        print(f'Inference done: {path_out} was created')
-        print('-'*40)
-    
-
     # Remove tempdir
+    print('Removing temp directory...')
     shutil.rmtree(tmpdir)
+
+    print('-'*40)
+    print(f'Inference done: {path_out} was created')
+    print('-'*40)
 
 if __name__=='__main__':
     main()

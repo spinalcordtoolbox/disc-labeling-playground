@@ -36,6 +36,7 @@ def apply_preprocessing(img_path, dim):
 
 ##
 def cropWithSC(in_path, in_sc_path, tmpdir):
+    print('Croping input...')
     # Create mask using the SC centerline
     temp_mask_path = os.path.join(tmpdir, 'mask.nii.gz')
     subprocess.check_call(['sct_create_mask',

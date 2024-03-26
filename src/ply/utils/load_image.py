@@ -26,6 +26,7 @@ def fetch_and_preproc_image_cGAN(path_in, path_seg, tmpdir):
     shutil.copyfile(path_seg, temp_seg_path)
 
     # Reorient images to RSP using SCT
+    print('Reorienting images to RSP...')
     subprocess.check_call(['sct_image',
                         '-i', temp_in_path,
                         '-setorient', 'RSP'])
@@ -37,7 +38,7 @@ def fetch_and_preproc_image_cGAN(path_in, path_seg, tmpdir):
     # Crop input image
     temp_in_crop_path = cropWithSC(temp_in_path, temp_seg_path, tmpdir)
 
-    return [{'image':{temp_in_crop_path}}]
+    return [{'image': temp_in_crop_path}]
 
     
     
