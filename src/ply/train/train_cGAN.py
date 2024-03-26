@@ -26,7 +26,6 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     RandRotate90d,
     RandFlipd,
-    LabelToContourd,
     NormalizeIntensityd
 )
 
@@ -34,6 +33,7 @@ from ply.utils.utils import tuple_type
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
 from ply.models.criterion import CriterionCGAN
+from ply.models.transform import RandLabelToContourd
 from ply.utils.load_config import fetch_and_preproc_config_cGAN
 from ply.utils.plot import get_validation_image
 
@@ -131,9 +131,7 @@ def main():
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            LabelToContourd(keys=["image"], kernel_type='Laplace'),
-            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.2),
             RandFlipd(
                 keys=["image", "label"],
                 spatial_axis=[0],
