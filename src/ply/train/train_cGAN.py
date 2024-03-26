@@ -103,18 +103,10 @@ def main():
                                             )
     
     # Define transforms
-    # Max with pixdim=(0.5, 0.5, 0.5)
-    # R max =  102
-    # S max =  446
-    # P max =  284
-    # Max with pixdim=(0.7, 0.7, 0.7)
-    # R max =  73
-    # S max =  319
-    # P max =  203
     # Max with pixdim=(1, 1, 1)
     # R max =  51
-    # S max =  223
-    # P max =  143
+    # S max =  234
+    # P max =  156
     crop_size = (64, 256, 160) # RSP
     pixdim=(1, 1, 1)
     train_transforms = Compose(
@@ -143,7 +135,9 @@ def main():
                 keys=["image", "label"],
                 spatial_axis=[2],
                 prob=0.10,
-            )
+            ),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
         ]
     )
     val_transforms = Compose(
@@ -157,7 +151,6 @@ def main():
                 mode=("bilinear", "nearest"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            LabelToContourd(keys=["image"], kernel_type='Laplace'),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
         ]
@@ -263,12 +256,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth')
+            torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth')
+            torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth')
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}.pth'
+    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth'
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",
