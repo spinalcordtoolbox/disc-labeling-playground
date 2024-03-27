@@ -29,7 +29,8 @@ from monai.transforms import (
     NormalizeIntensityd
 )
 
-from ply.utils.utils import tuple_type
+from ply.utils.utils import tuple_type, tuple2string
+from ply.utils.config2parser import parser2config
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
 from ply.models.criterion import CriterionCGAN
@@ -45,6 +46,8 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=500).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
+    parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 160), help='Training crop size in RSP orientation(default=(64, 256, 160)).')
+    parser.add_argument('--pixdim', type=tuple_type, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
     parser.add_argument('--d-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-5)')
@@ -85,6 +88,11 @@ def main():
 
     if len(out_contrast.split('_'))>1:
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
+    
+    # Save training config
+    json_name = f'config_cGAN_{args.model}_{in_contrast}2{out_contrast}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}.json'
+    saved_args = copy.copy(args)
+    parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
     # Create weights folder to store training weights
     if not os.path.exists(weight_folder):
@@ -107,8 +115,8 @@ def main():
     # R max =  51
     # S max =  234
     # P max =  156
-    crop_size = (64, 256, 160) # RSP
-    pixdim=(1, 1, 1)
+    crop_size = args.crop_size # RSP
+    pixdim = args.pixdim
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
@@ -256,12 +264,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth')
+            torch.save(stateG, f'{weight_folder}/gen_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth')
+            torch.save(stateG, f'{weight_folder}/disc_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth')
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdim_{pixdim[0]}_cropRSP_{crop_size[0]}_{crop_size[1]}_{crop_size[2]}.pth'
+    best_model_path = f'{weight_folder}/gen_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth'
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",

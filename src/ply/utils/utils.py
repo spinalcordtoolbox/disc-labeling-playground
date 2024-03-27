@@ -273,3 +273,8 @@ def tmp_create(basename):
     tmpdir = tempfile.mkdtemp(prefix=prefix)
     print(f"Creating temporary folder ({tmpdir})")
     return tmpdir
+
+
+##
+def tuple2string(t):
+    return str(t).replace(' ', '').replace('(','').replace(')','').replace(',','-')
