@@ -44,14 +44,14 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
-    parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=500).')
+    parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 160), help='Training crop size in RSP orientation(default=(64, 256, 160)).')
     parser.add_argument('--pixdim', type=tuple_type, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
-    parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
-    parser.add_argument('--d-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-5)')
-    parser.add_argument('--schedule', type=tuple_type, default=(0.70, 0.85), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.75, 0.85))')
+    parser.add_argument('--g-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-5)')
+    parser.add_argument('--d-lr', default=2.5e-6, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-6)')
+    parser.add_argument('--schedule', type=tuple_type, default=(0.60, 0.75), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.75, 0.85))')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
                         help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
     return parser
