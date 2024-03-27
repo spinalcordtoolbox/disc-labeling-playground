@@ -127,7 +127,6 @@ def main():
                 pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.2),
             RandFlipd(
                 keys=["image", "label"],
@@ -146,6 +145,7 @@ def main():
             ),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
         ]
     )
     val_transforms = Compose(
@@ -158,9 +158,9 @@ def main():
                 pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
         ]
     )
 
