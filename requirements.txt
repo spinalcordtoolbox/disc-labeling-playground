@@ -1,8 +1,9 @@
 wandb
 numpy
 pandas
-monai
+monai[all]
 progress
 nibabel
 matplotlib
 argparse
+tqdm

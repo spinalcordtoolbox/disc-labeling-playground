@@ -24,7 +24,6 @@ from monai.transforms import (
     Spacingd,
     Compose,
     ResizeWithPadOrCropd,
-    RandRotate90d,
     RandFlipd,
     NormalizeIntensityd
 )
