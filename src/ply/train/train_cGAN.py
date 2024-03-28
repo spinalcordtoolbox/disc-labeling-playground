@@ -46,7 +46,7 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 160), help='Training crop size in RSP orientation(default=(64, 256, 160)).')
+    parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
     parser.add_argument('--pixdim', type=tuple_type, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-5)')
@@ -83,7 +83,7 @@ def main():
     
     # Load variables
     weight_folder = args.weight_folder
-    in_contrast = config_data['CONTRASTS']
+    in_contrast = config_data['CONTRASTS'].replace('_T2w','').replace('T2w_','')
     out_contrast = 'T2w'
 
     if len(out_contrast.split('_'))>1:
@@ -204,8 +204,8 @@ def main():
                     spatial_dims=3,
                     in_channels=1,
                     out_channels=1,
-                    channels=(16, 32, 64, 128, 256),
-                    strides=(2, 2, 2, 2),
+                    channels=(16, 32, 64, 128, 256, 512),
+                    strides=(2, 2, 2, 2, 2),
                     kernel_size=3).to(device)
     elif args.model == 'swinunetr':
         generator =  SwinUNETR(
@@ -232,7 +232,7 @@ def main():
         raise ValueError(f'Specified model {args.model} is unknown')
 
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128, 256], kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128, 256, 512], kernel_size=[3,3,3]).to(device)
 
     # Init criterion
     BCE_LOSS = torch.nn.BCEWithLogitsLoss()
