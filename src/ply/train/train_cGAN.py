@@ -16,7 +16,7 @@ import torch.optim as optim
 
 import monai
 from monai.data import DataLoader, CacheDataset
-from monai.networks.nets import UNet, AttentionUnet, SwinUNETR
+from monai.networks.nets import UNet, AttentionUnet, SwinUNETR, UNETR
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -42,7 +42,7 @@ def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
-    parser.add_argument('--model', default='swinunetr', choices=['attunet', 'swinunetr'] , help='Model used for training. Options:["attunet", "swinunetr"] (default="attunet")')
+    parser.add_argument('--model', default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
@@ -127,7 +127,7 @@ def main():
                 pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.2),
+            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=1),
             RandFlipd(
                 keys=["image", "label"],
                 spatial_axis=[0],
@@ -158,6 +158,7 @@ def main():
                 pixdim=pixdim,
                 mode=("bilinear", "nearest"),
             ),
+            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=1),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
@@ -213,6 +214,20 @@ def main():
                         out_channels=1, 
                         img_size=crop_size,
                         feature_size=24).to(device)
+    elif args.model == 'unetr':
+        generator = UNETR(
+                        in_channels=1,
+                        out_channels=1,
+                        img_size=crop_size,
+                        feature_size=16,
+                        hidden_size=768,
+                        mlp_dim=3072,
+                        num_heads=12,
+                        pos_embed="perceptron",
+                        norm_name="instance",
+                        res_block=True,
+                        dropout_rate=0.0,
+                    ).to(device)
     else:
         raise ValueError(f'Specified model {args.model} is unknown')
 
