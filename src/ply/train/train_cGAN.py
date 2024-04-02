@@ -47,6 +47,7 @@ def get_parser():
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
+    parser.add_argument('--channels', type=tuple_type, default=(16, 32, 64, 128, 256), help='Channels if attunet selected')
     parser.add_argument('--pixdim', type=tuple_type, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-5)')
@@ -90,7 +91,8 @@ def main():
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
     
     # Save training config
-    json_name = f'config_cGAN_{args.model}_{in_contrast}2{out_contrast}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}.json'
+    model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -199,13 +201,14 @@ def main():
                         )
 
     # Create generator model
+    channels=args.channels
     if args.model == 'attunet':
         generator = AttentionUnet(
                     spatial_dims=3,
                     in_channels=1,
                     out_channels=1,
-                    channels=(16, 32, 64, 128, 256, 512),
-                    strides=(2, 2, 2, 2, 2),
+                    channels=channels,
+                    strides=[2]*(len(channels)-1),
                     kernel_size=3).to(device)
     elif args.model == 'swinunetr':
         generator =  SwinUNETR(
@@ -232,7 +235,7 @@ def main():
         raise ValueError(f'Specified model {args.model} is unknown')
 
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, features=[16, 32, 64, 128, 256, 512], kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=channels, kernel_size=[3,3,3]).to(device)
 
     # Init criterion
     BCE_LOSS = torch.nn.BCEWithLogitsLoss()
@@ -289,12 +292,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth')
+            torch.save(stateG, f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth')
+            torch.save(stateG, f'{weight_folder}/disc_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}.pth')
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{args.model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}.pth'
+    best_model_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}.pth'
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",
