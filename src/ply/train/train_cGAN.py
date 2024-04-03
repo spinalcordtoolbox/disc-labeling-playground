@@ -46,8 +46,9 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
+    parser.add_argument('--warmup-epochs', type=int, default=20, help='Number of epochs during which the discriminator model will not learn (default=20).')
     parser.add_argument('--crop-size', type=tuple_type, default=(64, 320, 192), help='Training crop size in RSP orientation(default=(64, 320, 192)).')
-    parser.add_argument('--channels', type=tuple_type, default=(16, 32, 64, 128, 256), help='Channels if attunet selected')
+    parser.add_argument('--channels', type=tuple_type, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type, default=(0.8, 0.8, 0.8), help='Training resolution in RSP orientation (default=(0.8, 0.8, 0.8)).')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
@@ -249,8 +250,8 @@ def main():
     # Add optimizer
     d_lr = args.d_lr  # discriminator learning rate
     g_lr = args.g_lr  # generator learning rate
-    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
-    optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.5, 0.999))
+    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.9, 0.999))
+    optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.9, 0.999))
     g_scaler = torch.cuda.amp.GradScaler()
     d_scaler = torch.cuda.amp.GradScaler()
 
@@ -271,12 +272,13 @@ def main():
         # Adjust learning rate
         if epoch in [round(frac*args.nb_epochs) for frac in args.schedule]:
             g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.5)
-            # d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.5)
+            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.8)
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
-        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, device)
+        warmup = True if epoch < args.warmup_epochs else False
+        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         wandb.log({"Gloss_train/epoch": train_Gloss})
@@ -361,7 +363,7 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
     return G_loss.mean().item(), D_loss.mean().item(), acc
 
 
-def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, device):
+def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device):
     generator.train()
     discriminator.train()
     R, S, P = [], [], []
@@ -380,10 +382,11 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
             D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
             D_loss = (D_real_loss + D_fake_loss) / 2
 
-        discriminator.zero_grad()
-        d_scaler.scale(D_loss).backward()
-        d_scaler.step(optimizerD)
-        d_scaler.update()
+        if not warmup:
+            discriminator.zero_grad()
+            d_scaler.scale(D_loss).backward()
+            d_scaler.step(optimizerD)
+            d_scaler.update()
 
         acc_real = D_real.mean().item() 
         acc_fake = 1.0 - D_fake.mean().item() 
