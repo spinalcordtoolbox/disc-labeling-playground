@@ -46,7 +46,7 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
-    parser.add_argument('--warmup-epochs', type=int, default=20, help='Number of epochs during which the discriminator model will not learn (default=20).')
+    parser.add_argument('--warmup-epochs', type=int, default=10, help='Number of epochs during which the discriminator model will not learn (default=10).')
     parser.add_argument('--crop-size', type=tuple_type, default=(64, 320, 192), help='Training crop size in RSP orientation(default=(64, 320, 192)).')
     parser.add_argument('--channels', type=tuple_type, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type, default=(0.8, 0.8, 0.8), help='Training resolution in RSP orientation (default=(0.8, 0.8, 0.8)).')
@@ -132,7 +132,7 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
-                mode=("bilinear", "nearest"),
+                mode=("bilinear", "bilinear"),
             ),
             RandFlipd(
                 keys=["image", "label"],
@@ -163,7 +163,7 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
-                mode=("bilinear", "nearest"),
+                mode=("bilinear", "bilinear"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.3),
