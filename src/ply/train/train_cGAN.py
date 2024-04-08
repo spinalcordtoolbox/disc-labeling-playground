@@ -28,7 +28,7 @@ from monai.transforms import (
     NormalizeIntensityd
 )
 
-from ply.utils.utils import tuple_type, tuple2string
+from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string
 from ply.utils.config2parser import parser2config
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
@@ -47,13 +47,15 @@ def get_parser():
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--warmup-epochs', type=int, default=10, help='Number of epochs during which the discriminator model will not learn (default=10).')
-    parser.add_argument('--crop-size', type=tuple_type, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
-    parser.add_argument('--channels', type=tuple_type, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
-    parser.add_argument('--pixdim', type=tuple_type, default=(0.8, 0.8, 0.8), help='Training resolution in RSP orientation (default=(0.8, 0.8, 0.8)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
+    parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
+    parser.add_argument('--pixdim', type=tuple_type_float, default=(0.8, 0.8, 0.8), help='Training resolution in RSP orientation (default=(0.8, 0.8, 0.8)).')
+    parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
+    parser.add_argument('--interp-mode', type=str, default='bilinear', choices=['bilinear', 'nearest'], help='Interpolation mode for input and output image. (default="bilinear").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-5)')
     parser.add_argument('--d-lr', default=2.5e-6, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-6)')
-    parser.add_argument('--schedule', type=tuple_type, default=(0.50, 0.75), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.5, 0.75))')
+    parser.add_argument('--schedule', type=tuple_type_float, default=(0.50, 0.75), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.5, 0.75))')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
                         help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
     return parser
@@ -132,7 +134,7 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
-                mode=("bilinear", "bilinear"),
+                mode=(args.interp_mode, args.interp_mode),
             ),
             RandFlipd(
                 keys=["image", "label"],
@@ -150,7 +152,7 @@ def main():
                 prob=0.10,
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.3),
+            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
         ]
@@ -166,7 +168,6 @@ def main():
                 mode=("bilinear", "bilinear"),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=0.3),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
         ]
@@ -250,8 +251,8 @@ def main():
     # Add optimizer
     d_lr = args.d_lr  # discriminator learning rate
     g_lr = args.g_lr  # generator learning rate
-    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.9, 0.999))
-    optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.9, 0.999))
+    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
+    optimizerD = optim.Adam(discriminator.parameters(), lr=d_lr, betas=(0.5, 0.999))
     g_scaler = torch.cuda.amp.GradScaler()
     d_scaler = torch.cuda.amp.GradScaler()
 
