@@ -51,7 +51,7 @@ def get_parser():
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(0.8, 0.8, 0.8)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
-    parser.add_argument('--interp-mode', type=str, default='bilinear', choices=['bilinear', 'nearest'], help='Interpolation mode for input and output image. (default="bilinear").')
+    parser.add_argument('--interp-mode', type=str, default='bilinear', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="bilinear").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-5)')
     parser.add_argument('--d-lr', default=2.5e-6, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-6)')
@@ -124,6 +124,10 @@ def main():
     # R max = 64
     # S max = 292
     # P max = 195
+    if args.interp_mode != 'spline':
+        interp_mode = args.interp_mode
+    else:
+        interp_mode = 2
     crop_size = args.crop_size # RSP
     pixdim = args.pixdim
     train_transforms = Compose(
@@ -134,7 +138,7 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
-                mode=(args.interp_mode, args.interp_mode),
+                mode=(interp_mode, interp_mode),
             ),
             RandFlipd(
                 keys=["image", "label"],
@@ -165,7 +169,7 @@ def main():
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
-                mode=(args.interp_mode, args.interp_mode),
+                mode=(interp_mode, interp_mode),
             ),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
