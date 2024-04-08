@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 import datetime
+import numpy as np
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -254,14 +255,23 @@ def normalize(arr):
     mi = arr.min()
     return ((arr - mi) / (ma - mi))
 
+
 ##
-def tuple_type(strings):
+def tuple_type_int(strings):
     '''
     Copied from https://stackoverflow.com/questions/33564246/passing-a-tuple-as-command-line-argument
     '''
     strings = strings.replace("(", "").replace(")", "")
     mapped_int = map(int, strings.split(","))
     return tuple(mapped_int)
+
+def tuple_type_float(strings):
+    '''
+    Copied from https://stackoverflow.com/questions/33564246/passing-a-tuple-as-command-line-argument
+    '''
+    strings = strings.replace("(", "").replace(")", "")
+    mapped_float = map(float, strings.split(","))
+    return tuple(mapped_float)
 
 
 ##
