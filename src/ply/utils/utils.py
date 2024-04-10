@@ -201,7 +201,7 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
                                 '-o', dest_sc_crop_path])
             
             subprocess.check_call(['sct_qc',
-                                    '-i', in_reg_path,
+                                    '-i', input_crop_path,
                                     '-d', dest_crop_path,
                                     '-s', dest_sc_crop_path,
                                     '-p', 'sct_register_multimodal',

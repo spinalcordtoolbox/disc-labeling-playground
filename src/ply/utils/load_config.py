@@ -122,8 +122,8 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
             err.append([input_sc_path, 'path error'])
         else:
             # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop')
-            errcode, img_path, target_path = registerNcrop(in_path=input_img_path, dest_path=target_img_path, in_sc_path=input_sc_path, dest_sc_path=target_sc_path, derivatives_folder=derivatives_path)
+            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_InputT2w')
+            errcode, target_path, img_path = registerNcrop(in_path=target_img_path, dest_path=input_img_path, in_sc_path=target_sc_path, dest_sc_path=input_sc_path, derivatives_folder=derivatives_path)
             if errcode[0] != 0:
                 err.append([input_sc_path, errcode[1]])
             # Output paths using MONAI load_decathlon_datalist format
