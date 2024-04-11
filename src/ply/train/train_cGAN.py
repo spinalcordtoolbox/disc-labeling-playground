@@ -95,7 +95,7 @@ def main():
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -304,12 +304,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
+            torch.save(stateG, f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
+            torch.save(stateG, f'{weight_folder}/disc_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth'
+    best_model_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth'
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",
