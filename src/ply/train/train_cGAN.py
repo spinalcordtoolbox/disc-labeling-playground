@@ -274,11 +274,12 @@ def main():
 
     # start a typical PyTorch training
     val_loss = np.inf
+    train_Dacc = 0
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
-        if epoch in [round(frac*args.nb_epochs) for frac in args.schedule]:
-            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.5)
-            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.8)
+        if train_Dacc > 0.95:
+            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.25)
+            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.25)
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
