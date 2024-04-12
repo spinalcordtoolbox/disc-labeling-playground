@@ -55,9 +55,9 @@ def get_parser():
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
     parser.add_argument('--d-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-5)')
-    parser.add_argument('--schedule', type=tuple_type_float, default=(0.50, 0.75), help='Decrease learning rate at these steps: fractions of the maximum number of epochs. (default=(0.5, 0.75))')
-    parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'),
-                        help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
+    parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'), help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
+    parser.add_argument('--start-gen-weights', type=str, default='', help='Path to the generator weights used to start the training.')
+    parser.add_argument('--start-disc-weights', type=str, default='', help='Path to the discriminator weights used to start the training.')
     return parser
 
 
@@ -248,6 +248,26 @@ def main():
     # Create Disciminator model
     discriminator = Discriminator(in_channels=1, features=channels, kernel_size=[3,3,3]).to(device)
 
+    # Init weights if weights are specified
+    if args.start_gen_weights or args.start_disc_weights:
+        if args.start_gen_weights:
+            # Check if weights path exists
+            if not os.path.exists(args.start_gen_weights):
+                raise ValueError(f'Weights path {args.start_gen_weights} does not exist')
+        # Load generator weights
+        generator.load_state_dict(torch.load(args.start_gen_weights, map_location=torch.device(device))["generator_weights"])
+
+        if args.start_disc_weights:
+            # Check if weights path exists
+            if not os.path.exists(args.start_disc_weights):
+                raise ValueError(f'Weights path {args.start_disc_weights} does not exist')
+        # Load discriminator weights
+        discriminator.load_state_dict(torch.load(args.start_disc_weights, map_location=torch.device(device))["discriminator_weights"])
+
+    # Path to the saved weights       
+    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth'
+    disc_weights_path = gen_weights_path.replace('gen', 'disc')
+
     # Init criterion
     BCE_LOSS = torch.nn.BCEWithLogitsLoss()
     FEATURE_LOSS = CriterionCGAN(dim=3, L1coeff=args.alpha, SSIMcoeff=100)
@@ -305,12 +325,12 @@ def main():
         if val_loss > val_Gloss:
             val_loss = val_Gloss
             stateG = copy.deepcopy({'generator_weights': generator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
+            torch.save(stateG, gen_weights_path)
             stateD = copy.deepcopy({'discriminator_weights': discriminator.state_dict()})
-            torch.save(stateG, f'{weight_folder}/disc_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth')
+            torch.save(stateG, disc_weights_path)
 
     # 🐝 version your model
-    best_model_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth'
+    best_model_path = gen_weights_path
     model_artifact = wandb.Artifact(f"cGAN_{in_contrast}2{out_contrast}", 
                                     type="model",
                                     description=f"UNETR {in_contrast}2{out_contrast}",
