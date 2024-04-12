@@ -325,6 +325,7 @@ def main():
 def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoch, device):
     generator.eval()
     discriminator.eval()
+    acc_list = []
     epoch_iterator = tqdm(data_loader, desc="Validation (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator):
@@ -345,6 +346,7 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
             acc_real = D_real.mean().item() 
             acc_fake = 1.0 - D_fake.mean().item() 
             acc = (acc_real + acc_fake) / 2.0
+            acc_list.append(acc)
 
             # Evaluate generator
             with torch.cuda.amp.autocast():
@@ -366,13 +368,14 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
                 wandb.log({"validation_img/groud_truth": wandb.Image(target_img, caption=f'ground_truth_{epoch}')})
                 wandb.log({"validation_img/prediction": wandb.Image(pred_img, caption=f'prediction_{epoch}')})
 
-    return G_loss.mean().item(), D_loss.mean().item(), acc
+    return G_loss.mean().item(), D_loss.mean().item(), np.mean(acc_list)
 
 
 def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device):
     generator.train()
     discriminator.train()
     R, S, P = [], [], []
+    acc_list = []
     epoch_iterator = tqdm(data_loader, desc="Training (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
@@ -397,7 +400,8 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
         acc_real = D_real.mean().item() 
         acc_fake = 1.0 - D_fake.mean().item() 
         acc = (acc_real + acc_fake) / 2.0
-        
+        acc_list.append(acc)
+
         with torch.cuda.amp.autocast():
             # Train generator
             D_fake = discriminator(x, y_fake)
@@ -414,7 +418,7 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
             "Training (G_loss=%2.5f) (D_loss=%2.5f)" % (G_loss.mean().item(), D_loss.mean().item())
         )
 
-    return G_loss.mean().item(), D_loss.mean().item(), acc
+    return G_loss.mean().item(), D_loss.mean().item(), np.mean(acc_list)
     
 
 if __name__=='__main__':
