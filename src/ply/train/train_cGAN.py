@@ -364,8 +364,8 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
                 D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
                 D_loss = (D_real_loss + D_fake_loss) / 2
 
-            acc_real = normalize(D_real).mean().item() 
-            acc_fake = 1.0 - normalize(D_fake).mean().item() 
+            acc_real = D_real.mean().item() 
+            acc_fake = - D_fake.mean().item() 
             acc = (acc_real + acc_fake) / 2.0
             acc_list.append(acc)
 
@@ -418,8 +418,8 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
             d_scaler.step(optimizerD)
             d_scaler.update()
 
-        acc_real = normalize(D_real).mean().item() 
-        acc_fake = 1.0 - normalize(D_fake).mean().item() 
+        acc_real = D_real.mean().item() 
+        acc_fake = - D_fake.mean().item() 
         acc = (acc_real + acc_fake) / 2.0
         acc_list.append(acc)
 
