@@ -297,7 +297,7 @@ def main():
     train_Dacc = 0
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
-        if train_Dacc > 0.95:
+        if train_Dacc > 2.8:
             g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.5)
             d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.5)
 
