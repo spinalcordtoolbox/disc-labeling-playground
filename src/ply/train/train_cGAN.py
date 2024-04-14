@@ -297,9 +297,12 @@ def main():
     train_Dacc = 0
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
-        if train_Dacc > 2.8:
+        if train_Dacc > 2.8 and not warmup:
             g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.1)
             d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.1)
+            warmup = True
+        if warmup and train_Dacc < 2.8:
+            warmup = False
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
