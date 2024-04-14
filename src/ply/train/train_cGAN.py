@@ -295,6 +295,7 @@ def main():
     # start a typical PyTorch training
     val_loss = np.inf
     train_Dacc = 0
+    warmup = False
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
         if train_Dacc > 2.8 and not warmup:
@@ -307,7 +308,7 @@ def main():
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
-        warmup = True if epoch < args.warmup_epochs else False
+        # warmup = True if epoch < args.warmup_epochs else False
         train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
