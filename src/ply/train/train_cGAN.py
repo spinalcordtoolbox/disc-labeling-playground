@@ -298,17 +298,14 @@ def main():
     warmup = False
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
-        if train_Dacc > 2.8 and not warmup:
+        if train_Dacc > 0.95:
             g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.1)
             d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.1)
-            warmup = True
-        if warmup and train_Dacc < 2.8:
-            warmup = False
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
         # train for one epoch
-        # warmup = True if epoch < args.warmup_epochs else False
+        warmup = True if epoch < args.warmup_epochs else False
         train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
@@ -401,6 +398,7 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
     discriminator.train()
     R, S, P = [], [], []
     acc_list = []
+    train_disc = True # Based on https://github.com/cihanongun/3D-CGAN/blob/master/main.ipynb
     epoch_iterator = tqdm(data_loader, desc="Training (G_loss=X.X) (D_loss=X.X) (ACC=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
@@ -416,7 +414,7 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
             D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
             D_loss = (D_real_loss + D_fake_loss) / 2
 
-        if not warmup:
+        if not warmup or train_disc:
             discriminator.zero_grad()
             d_scaler.scale(D_loss).backward()
             d_scaler.step(optimizerD)
@@ -426,6 +424,8 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
         acc_fake = - D_fake.mean().item() 
         acc = (acc_real + acc_fake) / 2.0
         acc_list.append(acc)
+
+        train_disc = np.mean(acc_list) < 0.95 # Train or not the discriminator on the next batch
 
         with torch.cuda.amp.autocast():
             # Train generator
