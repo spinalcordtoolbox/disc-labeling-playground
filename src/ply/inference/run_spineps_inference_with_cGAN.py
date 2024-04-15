@@ -92,8 +92,9 @@ def main():
     img_list = fetch_and_preproc_image_cGAN(path_in=path_in, path_seg=path_seg, tmpdir=tmpdir)
 
     # Define test transforms
-    crop_size = (64, 256, 192) # RSP
-    pixdim=(1, 1, 1)
+    crop_size = tuple(map(int, args.weight_path.split('cropRSP_')[-1].split('_')[0].split('-'))) # RSP
+    pixdim=tuple(map(float, args.weight_path.split('pixdimRSP_')[-1].split('_')[0].split('-')))
+    interpolation=2 # spline
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
@@ -102,7 +103,7 @@ def main():
             Spacingd(
                 keys=["image"],
                 pixdim=pixdim,
-                mode=("bilinear"),
+                mode=(interpolation),
             ),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
             LabelToContourd(keys=["image"], kernel_type='Laplace'),
@@ -220,5 +221,10 @@ def main():
     # Remove tempdir
     print('Removing temp directory...')
     shutil.rmtree(tmpdir)
+
+    print('-'*40)
+    print(f'Inference done: {out_folder} was created')
+    print('-'*40)
+
 if __name__=='__main__':
     main()

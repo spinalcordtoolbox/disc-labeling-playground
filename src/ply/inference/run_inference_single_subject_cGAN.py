@@ -68,7 +68,7 @@ def main():
     # Load variables
     path_in = os.path.abspath(args.path_in)
     path_seg = os.path.abspath(args.path_seg)
-    path_out = path_in.split('.nii.gz')[0]+'_desc-crop_fakeT2w.nii.gz' if not args.path_out else args.path_out
+    path_out = path_in.replace('.nii.gz','')+'_desc-crop_fakeT2w.nii.gz' if not args.path_out else args.path_out
     weight_path = os.path.abspath(args.weight_path)
 
     # Check if weight path exists
@@ -85,8 +85,8 @@ def main():
     img_list = fetch_and_preproc_image_cGAN(path_in=path_in, path_seg=path_seg, tmpdir=tmpdir)
 
     # Define test transforms
-    crop_size = (64, 256, 160) # RSP
-    pixdim=(1, 1, 1)
+    crop_size = tuple(map(int, args.weight_path.split('cropRSP_')[-1].split('_')[0].split('-'))) # RSP
+    pixdim=tuple(map(float, args.weight_path.split('pixdimRSP_')[-1].split('_')[0].split('-')))
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
