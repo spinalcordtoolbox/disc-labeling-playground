@@ -46,6 +46,8 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
+    parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
+    parser.add_argument('--gamma', type=float, default=0.25, help='Factor used to reduce the learning rate (default=0.25)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
     parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
@@ -95,7 +97,7 @@ def main():
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -265,7 +267,7 @@ def main():
         discriminator.load_state_dict(torch.load(args.start_disc_weights, map_location=torch.device(device))["discriminator_weights"])
 
     # Path to the saved weights       
-    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_interp_{args.interp_mode}.pth'
+    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
     disc_weights_path = gen_weights_path.replace('gen', 'disc')
 
     # Init criterion
@@ -298,9 +300,9 @@ def main():
     warmup = False
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
-        if train_Dacc > 0.95:
-            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=0.1)
-            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=0.1)
+        if epoch in [int(sch*args.nb_epochs) for sch in args.schedule]:
+            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=args.gamma)
+            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=args.gamma)
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
