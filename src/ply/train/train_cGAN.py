@@ -42,7 +42,7 @@ def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
-    parser.add_argument('--model', default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
+    parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
@@ -271,7 +271,7 @@ def main():
     disc_weights_path = gen_weights_path.replace('gen', 'disc')
 
     # Init criterion
-    BCE_LOSS = torch.nn.BCEWithLogitsLoss()
+    DISC_LOSS = torch.nn.BCEWithLogitsLoss()
     FEATURE_LOSS = CriterionCGAN(dim=3, L1coeff=args.alpha, SSIMcoeff=100)
     torch.backends.cudnn.benchmark = True
 
@@ -309,7 +309,7 @@ def main():
 
         # train for one epoch
         warmup = True if epoch < args.warmup_epochs else False
-        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device)
+        train_Gloss, train_Dloss, train_Dacc = train(train_loader, generator, discriminator, DISC_LOSS, FEATURE_LOSS, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         wandb.log({"Gloss_train/epoch": train_Gloss})
@@ -318,7 +318,7 @@ def main():
         wandb.log({"training_lr/epoch": g_lr})
         
         # evaluate on validation set
-        val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, BCE_LOSS, FEATURE_LOSS, epoch, device)
+        val_Gloss, val_Dloss, val_Dacc = validate(val_loader, generator, discriminator, DISC_LOSS, FEATURE_LOSS, epoch, device)
 
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         wandb.log({"Gloss_val/epoch": val_Gloss})
@@ -347,7 +347,7 @@ def main():
     wandb.finish()
 
 
-def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoch, device):
+def validate(data_loader, generator, discriminator, disc_loss, feature_loss, epoch, device):
     generator.eval()
     discriminator.eval()
     acc_list = []
@@ -363,10 +363,11 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
             # Evaluate discriminator
             with torch.cuda.amp.autocast():
                 D_real = discriminator(x, y)
-                D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
                 D_fake = discriminator(x, y_fake.detach())
-                D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
+                D_real_loss = disc_loss(D_real, torch.ones_like(D_real))
+                D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
                 D_loss = (D_real_loss + D_fake_loss) / 2
+                
 
             acc_real = D_real.mean().item() 
             acc_fake = - D_fake.mean().item() 
@@ -376,7 +377,7 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
             # Evaluate generator
             with torch.cuda.amp.autocast():
                 D_fake = discriminator(x, y_fake)
-                G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
+                G_fake_loss = disc_loss(D_fake, torch.ones_like(D_fake))
                 f_loss = feature_loss(y_fake, y)
                 G_loss = G_fake_loss + f_loss
 
@@ -396,7 +397,7 @@ def validate(data_loader, generator, discriminator, bce_loss, feature_loss, epoc
     return G_loss.mean().item(), D_loss.mean().item(), np.mean(acc_list)
 
 
-def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device):
+def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimizerG, optimizerD, g_scaler, d_scaler, warmup, device):
     generator.train()
     discriminator.train()
     R, S, P = [], [], []
@@ -412,9 +413,9 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
             y_fake = generator(x)
             # Train discriminator
             D_real = discriminator(x, y)
-            D_real_loss = bce_loss(D_real, torch.ones_like(D_real))
             D_fake = discriminator(x, y_fake.detach())
-            D_fake_loss = bce_loss(D_fake, torch.zeros_like(D_fake))
+            D_real_loss = disc_loss(D_real, torch.ones_like(D_real))
+            D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
             D_loss = (D_real_loss + D_fake_loss) / 2
 
         if not warmup or train_disc:
@@ -433,7 +434,7 @@ def train(data_loader, generator, discriminator, bce_loss, feature_loss, optimiz
         with torch.cuda.amp.autocast():
             # Train generator
             D_fake = discriminator(x, y_fake)
-            G_fake_loss = bce_loss(D_fake, torch.ones_like(D_fake))
+            G_fake_loss = disc_loss(D_fake, torch.ones_like(D_fake))
             f_loss = feature_loss(y_fake, y)
             G_loss = G_fake_loss + f_loss
 
