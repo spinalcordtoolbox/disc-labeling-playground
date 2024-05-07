@@ -1,5 +1,7 @@
 from monai.losses.ssim_loss import SSIMLoss
 import torch.nn as nn
+import torch
+import torch.nn.functional as F
 
 class CriterionCGAN(nn.Module):
     def __init__(self, dim, L1coeff, SSIMcoeff):
@@ -15,3 +17,13 @@ class CriterionCGAN(nn.Module):
     def forward(self, output, target):
         loss = self.L1coeff * self.L1criterion(output, target) + self.SSIMcoeff * self.SSIMcriterion(output, target)
         return loss
+
+
+def hinge_d_loss(logits_real, logits_fake):
+    '''
+    Copied from https://github.com/FirasGit/medicaldiffusion/blob/master/vq_gan_3d/model/vqgan.py
+    '''
+    loss_real = torch.mean(F.relu(1. - logits_real))
+    loss_fake = torch.mean(F.relu(1. + logits_fake))
+    d_loss = 0.5 * (loss_real + loss_fake)
+    return d_loss
