@@ -64,8 +64,8 @@ def get_parser():
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--crit-iter', type=int, default=5, help='Training iteration of the critic when the generator is trained 1 time (default=5).')
     parser.add_argument('--lambda-gp', type=int, default=10, help='Gradient penalty hyperparameter (default=10).')
-    parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
-    parser.add_argument('--c-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the critic (default=2.5e-5)')
+    parser.add_argument('--g-lr', default=1e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=1e-4)')
+    parser.add_argument('--c-lr', default=1e-4, type=float, metavar='LR', help='Initial learning rate of the critic (default=1e-4)')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CWGAN'), help='Folder where the cWGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3D-CWGAN")')
     parser.add_argument('--start-gen-weights', type=str, default='', help='Path to the generator weights used to start the training.')
     parser.add_argument('--start-critic-weights', type=str, default='', help='Path to the critic weights used to start the training.')
@@ -133,10 +133,10 @@ def main():
     # R max =  51
     # S max =  234
     # P max =  156
-    # Max with pixdim=(0.8, 0.8, 0.8)
-    # R max = 64
-    # S max = 292
-    # P max = 195
+    # Max with pixdim=(0.7, 0.7, 0.7)
+    # R max = 128
+    # S max = 332
+    # P max = 205
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
@@ -147,7 +147,7 @@ def main():
         [
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP- --> LIA+
             Spacingd(
                 keys=["image", "label"],
                 pixdim=pixdim,
