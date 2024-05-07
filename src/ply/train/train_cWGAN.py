@@ -315,13 +315,13 @@ def main():
         print('\nEpoch: %d | GEN_LR: %.8f | CRIT_LR: %.8f' % (epoch + 1, g_lr, c_lr))
 
         # train for one epoch
-        # train_Gloss, train_Closs, train_Cacc = train(train_loader, generator, critic, critic_iter, lambda_gp, FEATURE_LOSS, optimizerG, optimizerC, g_scaler, c_scaler, device)
+        train_Gloss, train_Closs, train_Cacc = train(train_loader, generator, critic, critic_iter, lambda_gp, FEATURE_LOSS, optimizerG, optimizerC, g_scaler, c_scaler, device)
 
-        # # 🐝 Plot G_loss D_loss and critic accuracy
-        # wandb.log({"Gloss_train/epoch": train_Gloss})
-        # wandb.log({"Closs_train/epoch": train_Closs})
-        # wandb.log({"Cacc_train/epoch": train_Cacc})
-        # wandb.log({"training_lr/epoch": g_lr})
+        # 🐝 Plot G_loss D_loss and critic accuracy
+        wandb.log({"Gloss_train/epoch": train_Gloss})
+        wandb.log({"Closs_train/epoch": train_Closs})
+        wandb.log({"Cacc_train/epoch": train_Cacc})
+        wandb.log({"training_lr/epoch": g_lr})
         
         # evaluate on validation set
         val_Gloss, val_Closs, val_Cacc = validate(val_loader, generator, critic, lambda_gp, FEATURE_LOSS, epoch, device)
