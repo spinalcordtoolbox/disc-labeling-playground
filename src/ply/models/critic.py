@@ -1,0 +1,61 @@
+'''
+Based on https://github.com/aladdinpersson/Machine-Learning-Collection/blob/master/ML/Pytorch/GANs/3.%20WGAN/model.py
+'''
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class CNNBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=[4,4,4], stride=[2,2,2], padding=1):
+        super(CNNBlock, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv3d(
+                in_channels, out_channels, kernel_size, stride, padding, bias=False, padding_mode="reflect"
+            ),
+            nn.InstanceNorm3d(out_channels, affine=True), # Change BatchNorm3D to InstanceNorm3d
+            nn.LeakyReLU(0.2)
+        )
+
+    def forward(self, x):
+        return self.conv(x)
+
+                      
+class Critic(nn.Module):
+    def __init__ (self, in_channels=1, features=[16, 32, 64, 128], kernel_size=[4,4,4]):
+        super(Critic, self).__init__()
+        
+        self.initial = nn.Sequential(
+            nn.Conv3d(
+                in_channels * 2,
+                features[0],
+                kernel_size=kernel_size,
+                stride=[2,2,2],
+                padding=1,
+                padding_mode="reflect",
+            ),
+            nn.LeakyReLU(0.2),
+        )
+
+        layers = []
+        in_channels = features[0]
+        for feature in features[1:]:
+            layers.append(
+                CNNBlock(in_channels, feature, kernel_size=kernel_size, stride=[1,1,1] if feature == features[-1] else [2,2,2])
+                )
+            in_channels = feature
+
+        layers.append(
+            nn.Conv3d(in_channels, 1, kernel_size=kernel_size, stride=[1,1,1], padding=1, padding_mode="reflect")
+            )
+
+        self.model = nn.Sequential(*layers)
+    
+    def forward(self, x, y):
+        
+        x = torch.cat([x, y], dim=1)
+        x = self.initial(x)
+        x = self.model(x)
+        
+        return x.squeeze()
