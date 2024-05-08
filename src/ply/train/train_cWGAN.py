@@ -108,7 +108,7 @@ def main():
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cWGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_cLR_{str(args.c_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cWGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_cLR_{str(args.c_lr)}_gamma_{str(args.gamma)}_critIter_{critic_iter}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -278,7 +278,7 @@ def main():
         critic.load_state_dict(torch.load(args.start_critic_weights, map_location=torch.device(device))["critic_weights"])
 
     # Path to the saved weights       
-    gen_weights_path = f'{weight_folder}/gen_cWGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_cLR_{str(args.c_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
+    gen_weights_path = f'{weight_folder}/gen_cWGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_cLR_{str(args.c_lr)}_gamma_{str(args.gamma)}_critIter_{critic_iter}.pth'
     crit_weights_path = gen_weights_path.replace('gen', 'crit')
 
     # Init criterion
