@@ -434,7 +434,7 @@ def train(data_loader, generator, critic, critic_iter, lambda_gp, feature_loss, 
             C_fake = critic(x, y_fake).reshape(-1)
             G_fake_loss = -torch.mean(C_fake)
             f_loss = feature_loss(y_fake, y)
-            G_loss = G_fake_loss - f_loss
+            G_loss = G_fake_loss # + f_loss
 
         generator.zero_grad()
         g_scaler.scale(G_loss).backward()
