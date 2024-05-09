@@ -288,8 +288,8 @@ def main():
     # Add optimizer
     c_lr = args.c_lr  # critic learning rate
     g_lr = args.g_lr  # generator learning rate
-    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.0, 0.9))
-    optimizerC = optim.Adam(critic.parameters(), lr=c_lr, betas=(0.0, 0.9))
+    optimizerG = optim.Adam(generator.parameters(), lr=g_lr, betas=(0.5, 0.999))
+    optimizerC = optim.Adam(critic.parameters(), lr=c_lr, betas=(0.5, 0.999))
     g_scaler = torch.cuda.amp.GradScaler()
     c_scaler = torch.cuda.amp.GradScaler()
 
@@ -434,7 +434,7 @@ def train(data_loader, generator, critic, critic_iter, lambda_gp, feature_loss, 
             C_fake = critic(x, y_fake).reshape(-1)
             G_fake_loss = -torch.mean(C_fake)
             f_loss = feature_loss(y_fake, y)
-            G_loss = G_fake_loss # + f_loss
+            G_loss = G_fake_loss + f_loss
 
         generator.zero_grad()
         g_scaler.scale(G_loss).backward()
