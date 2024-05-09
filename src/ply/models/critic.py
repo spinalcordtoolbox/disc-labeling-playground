@@ -14,7 +14,7 @@ class CNNBlock(nn.Module):
             nn.Conv3d(
                 in_channels, out_channels, kernel_size, stride, padding, bias=False, padding_mode="reflect"
             ),
-            nn.InstanceNorm3d(out_channels, affine=True), # Change BatchNorm3D to InstanceNorm3d
+            nn.BatchNorm3d(out_channels), # Change BatchNorm3D to InstanceNorm3d
             nn.LeakyReLU(0.2)
         )
 
