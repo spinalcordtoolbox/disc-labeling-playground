@@ -54,7 +54,7 @@ def get_parser():
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
-    parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.3 for i in range(3)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.3, 0.6, 0.9)).')
+    parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.05 for i in range(19)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=[(i+1)*0.05 for i in range(19)]).')
     parser.add_argument('--gamma', type=float, default=0.5, help='Factor used to reduce the learning rate (default=0.5)')
     parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
