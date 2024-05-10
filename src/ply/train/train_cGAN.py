@@ -49,14 +49,14 @@ def get_parser():
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(128, 384, 256), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
-    parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
+    parser.add_argument('--pixdim', type=tuple_type_float, default=(0.7, 0.7, 0.7), help='Training resolution in RSP orientation (default=(0.7, 0.7, 0.7)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
     parser.add_argument('--interp-mode', type=str, default='spline', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="spline").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
-    parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
-    parser.add_argument('--d-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-5)')
+    parser.add_argument('--g-lr', default=2.5e-2, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-2)')
+    parser.add_argument('--d-lr', default=2.5e-3, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-3)')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'), help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
     parser.add_argument('--start-gen-weights', type=str, default='', help='Path to the generator weights used to start the training.')
     parser.add_argument('--start-disc-weights', type=str, default='', help='Path to the discriminator weights used to start the training.')
@@ -126,6 +126,10 @@ def main():
     # R max = 64
     # S max = 292
     # P max = 195
+    # Max with pixdim=(0.7, 0.7, 0.7)
+    # R max = 128
+    # S max = 332
+    # P max = 205
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
