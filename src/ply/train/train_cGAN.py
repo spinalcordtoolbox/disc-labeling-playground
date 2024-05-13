@@ -422,13 +422,13 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
             # D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
             # D_loss = (D_real_loss + D_fake_loss) / 2
 
-            C_real = discriminator(x, y).reshape(-1)
-            C_fake = discriminator(x, y_fake.detach()).reshape(-1)
+            D_real = discriminator(x, y).reshape(-1)
+            D_fake = discriminator(x, y_fake.detach()).reshape(-1)
             #gp = gradient_penalty(critic, x, y, y_fake, device=device)
-            C_loss = -(torch.mean(C_real) - torch.mean(C_fake)) # + lambda_gp * gp
+            D_loss = -(torch.mean(D_real) - torch.mean(D_fake)) # + lambda_gp * gp
 
         discriminator.zero_grad()
-        d_scaler.scale(C_loss).backward()
+        d_scaler.scale(D_loss).backward()
         d_scaler.step(optimizerD)
         d_scaler.update()
 
