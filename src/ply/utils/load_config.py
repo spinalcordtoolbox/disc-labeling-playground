@@ -4,6 +4,8 @@ from progress.bar import Bar
 from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont, fetch_subject_and_session
 from ply.utils.utils import img2label, apply_preprocessing, registerNcrop
 from ply.utils.plot import plot_discs_distribution
+from ply.utils.image import Image
+from ply.utils.plot import save_violin
 
 ## Functions
 def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='TRAINING'):
@@ -89,7 +91,7 @@ def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='T
 
 
 ##
-def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
+def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
     '''
     :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
     :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
@@ -99,6 +101,9 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
             {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/data/chest_31_label.nii.gz'}
         ]
     '''
+    # Plot lists
+    if plot:
+        R, S, P, pR, pS, pP = [], [], [], [], [], []
 
     # Check config type to ensure that labels paths are specified and not images
     if config_data['TYPE'] != 'CONTRAST':
@@ -128,10 +133,23 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
                 err.append([input_sc_path, errcode[1]])
             # Output paths using MONAI load_decathlon_datalist format
             else:
+                if plot:
+                    img = Image(img_path).change_orientation('RSP')
+                    nx, ny, nz, nt, px, py, pz, pt = img.dim
+                    R.append(nx)
+                    S.append(ny)
+                    P.append(nz)
+                    pR.append(px)
+                    pS.append(py)
+                    pP.append(pz)
                 out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
         bar.next()
     bar.finish()
+    if plot:
+        # Save plot
+        save_violin([R,S,P], 'size.png', x_names=['R','S','P'], x_axis='axis', y_axis='size (pixel)')
+        save_violin([pR,pS,pP], 'res.png', x_names=['R','S','P'], x_axis='axis', y_axis='resolution (mm/pixel)')
     return out_decathlon_monai, err
