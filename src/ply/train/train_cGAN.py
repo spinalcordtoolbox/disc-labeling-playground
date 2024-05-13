@@ -429,7 +429,7 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
 
         discriminator.zero_grad()
         d_scaler.scale(C_loss).backward()
-        d_scaler.step(optimizerC)
+        d_scaler.step(optimizerD)
         d_scaler.update()
 
         # if not warmup or train_disc:
