@@ -74,7 +74,6 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
     input_crop_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
     dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
     mask_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
-    sc_intersection_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_SCintersec' + '.nii.gz')
 
     # Create directories
     if not os.path.exists(in_folder):
@@ -152,23 +151,23 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
 
         
         if not os.path.exists(mask_path):
-            # Multiply SC seg to extract the common ground between the 2 images
-            out=subprocess.run(['sct_maths',
-                                    '-i', dest_sc_path,
-                                    '-mul', in_ones_reg,
-                                    '-o', sc_intersection_path])
-            
-            if out.returncode != 0:
-                return (1, " ".join(out.args)), '', ''
-            
             # Create spinalcord mask for cropping see https://spinalcordtoolbox.com/user_section/tutorials/multimodal-registration/contrast-agnostic-registration/preprocessing-t2.html#creating-a-mask-around-the-spinal-cord
             out=subprocess.run(['sct_create_mask',
                                     '-i', in_reg_path,
-                                    '-p', f'centerline,{sc_intersection_path}',
+                                    '-p', f'centerline,{dest_sc_path}',
                                     '-size', '70mm',
                                     '-f', 'cylinder',
                                     '-o', mask_path])
 
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Multiply with one reg to extract the shared fov between the 2 images
+            out=subprocess.run(['sct_maths',
+                                    '-i', mask_path,
+                                    '-mul', in_ones_reg,
+                                    '-o', mask_path])
+            
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
         
