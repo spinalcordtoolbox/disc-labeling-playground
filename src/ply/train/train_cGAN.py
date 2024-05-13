@@ -448,7 +448,7 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
         with torch.cuda.amp.autocast():
             # Train generator
             D_fake = discriminator(x, y_fake)
-            G_fake_loss = -torch.mean(C_fake) # disc_loss(D_fake, torch.ones_like(D_fake))
+            G_fake_loss = -torch.mean(D_fake) # disc_loss(D_fake, torch.ones_like(D_fake))
             f_loss = feature_loss(y_fake, y)
             G_loss = G_fake_loss + f_loss
 
