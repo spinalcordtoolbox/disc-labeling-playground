@@ -416,27 +416,17 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
             # Get output from generator
             y_fake = generator(x)
             # Train discriminator
-            # D_real = discriminator(x, y)
-            # D_fake = discriminator(x, y_fake.detach())
-            # D_real_loss = disc_loss(D_real, torch.ones_like(D_real))
-            # D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
-            # D_loss = (D_real_loss + D_fake_loss) / 2
+            D_real = discriminator(x, y)
+            D_fake = discriminator(x, y_fake.detach())
+            D_real_loss = disc_loss(D_real, torch.ones_like(D_real))
+            D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
+            D_loss = (D_real_loss + D_fake_loss) / 2
 
-            D_real = discriminator(x, y).reshape(-1)
-            D_fake = discriminator(x, y_fake.detach()).reshape(-1)
-            #gp = gradient_penalty(critic, x, y, y_fake, device=device)
-            D_loss = -(torch.mean(D_real) - torch.mean(D_fake)) # + lambda_gp * gp
-
-        discriminator.zero_grad()
-        d_scaler.scale(D_loss).backward()
-        d_scaler.step(optimizerD)
-        d_scaler.update()
-
-        # if not warmup or train_disc:
-        #     discriminator.zero_grad()
-        #     d_scaler.scale(D_loss).backward()
-        #     d_scaler.step(optimizerD)
-        #     d_scaler.update()
+        if not warmup or train_disc:
+            discriminator.zero_grad()
+            d_scaler.scale(D_loss).backward()
+            d_scaler.step(optimizerD)
+            d_scaler.update()
 
         acc_real = D_real.mean().item() 
         acc_fake = - D_fake.mean().item() 
