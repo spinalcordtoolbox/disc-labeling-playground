@@ -49,9 +49,9 @@ def get_parser():
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(128, 384, 256), help='Training crop size in RSP orientation(default=(128, 384, 256)).')
-    parser.add_argument('--channels', type=tuple_type_int, default=(8, 16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
-    parser.add_argument('--pixdim', type=tuple_type_float, default=(0.7, 0.7, 0.7), help='Training resolution in RSP orientation (default=(0.7, 0.7, 0.7)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 384, 192), help='Training crop size in RSP orientation(default=(128, 384, 256)).')
+    parser.add_argument('--channels', type=tuple_type_int, default=(8, 16, 32, 64, 128, 256), help='Channels if attunet selected (default=8, 16,32,64,128,256)')
+    parser.add_argument('--pixdim', type=tuple_type_float, default=(1.65, 0.75, 0.75), help='Training resolution in RSP orientation (default=(1.65, 0.75, 0.75)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
     parser.add_argument('--interp-mode', type=str, default='spline', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="spline").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
@@ -109,12 +109,14 @@ def main():
     print('loading images...')
     train_list, err_train = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            split='TRAINING'
+                                            split='TRAINING',
+                                            plot=False
                                             )
     
     val_list, err_val = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            split='VALIDATION'
+                                            split='VALIDATION',
+                                            plot=False
                                             )
     
     # Define transforms
@@ -126,10 +128,10 @@ def main():
     # R max = 64
     # S max = 292
     # P max = 195
-    # Max with pixdim=(0.7, 0.7, 0.7)
-    # R max = 128
-    # S max = 332
-    # P max = 205
+    # Max with pixdim=(1.65, 0.75, 0.75)
+    # R max = 55
+    # S max = 310
+    # P max = 192
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
@@ -161,7 +163,7 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+            # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
