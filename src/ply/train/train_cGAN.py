@@ -49,7 +49,7 @@ def get_parser():
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 384, 192), help='Training crop size in RSP orientation(default=(96, 384, 192)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 320, 192), help='Training crop size in RSP orientation(default=(64, 320, 192)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(8, 16, 32, 64, 128, 256), help='Channels if attunet selected (default=8,16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1.0, 0.75, 0.75), help='Training resolution in RSP orientation (default=(1.0, 0.75, 0.75)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
