@@ -43,7 +43,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
-    parser.add_argument('--batch-size', type=int, default=10, help='Training batch size (default=10).')
+    parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
@@ -51,7 +51,7 @@ def get_parser():
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
     parser.add_argument('--crop-size', type=tuple_type_int, default=(32, 320, 192), help='Training crop size in RSP orientation(default=(32, 320, 192)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
-    parser.add_argument('--pixdim', type=tuple_type_float, default=(1.65, 0.75, 0.75), help='Training resolution in RSP orientation (default=(1.0, 0.75, 0.75)).')
+    parser.add_argument('--pixdim', type=tuple_type_float, default=(1.65, 0.75, 0.75), help='Training resolution in RSP orientation (default=(1.65, 0.75, 0.75)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
     parser.add_argument('--interp-mode', type=str, default='spline', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="spline").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
@@ -254,7 +254,7 @@ def main():
         raise ValueError(f'Specified model {args.model} is unknown')
 
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, features=channels, kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=tuple(np.sort(channels*2)), kernel_size=[3,3,3]).to(device)
 
     # Init weights if weights are specified
     if args.start_gen_weights or args.start_disc_weights:
