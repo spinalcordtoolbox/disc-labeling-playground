@@ -40,15 +40,11 @@ class Discriminator(nn.Module):
 
         layers = []
         in_channels = features[0]
-        for i, feature in enumerate(features[1:-1]):
+        for feature in features[1:]:
             layers.append(
-                CNNBlock(in_channels, feature, kernel_size=kernel_size, stride=[2,2,2], padding=2 if feature == features[i+1] else 1)
+                CNNBlock(in_channels, feature, kernel_size=kernel_size, stride=[1,1,1] if feature == features[-1] else [2,2,2])
                 )
             in_channels = feature
-        layers.append(
-                CNNBlock(in_channels, features[-1], kernel_size=kernel_size, stride=[1,1,1])
-                )
-        in_channels = feature
 
         layers.append(
             nn.Conv3d(in_channels, 1, kernel_size=kernel_size, stride=[1,1,1], padding=1, padding_mode="reflect")
@@ -57,6 +53,7 @@ class Discriminator(nn.Module):
         self.model = nn.Sequential(*layers)
     
     def forward(self, x, y):
+        
         x = torch.cat([x, y], dim=1)
         x = self.initial(x)
         x = self.model(x)
