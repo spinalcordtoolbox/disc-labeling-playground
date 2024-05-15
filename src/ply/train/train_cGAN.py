@@ -254,7 +254,7 @@ def main():
         raise ValueError(f'Specified model {args.model} is unknown')
 
     # Create Disciminator model
-    discriminator = Discriminator(in_channels=1, features=tuple(np.sort(channels*2)), kernel_size=[3,3,3]).to(device)
+    discriminator = Discriminator(in_channels=1, features=channels, kernel_size=[3,3,3]).to(device)
 
     # Init weights if weights are specified
     if args.start_gen_weights or args.start_disc_weights:
