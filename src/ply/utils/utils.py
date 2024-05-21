@@ -62,6 +62,7 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
     '''
     # Create output folder
     in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
+    dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
     out_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
 
     # Create paths for registration
@@ -208,6 +209,141 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
                                     '-qc', qc_path])
     return (0, ''), input_crop_path, dest_crop_path
 
+##
+def registerNoSC(in_path, dest_path, derivatives_folder):
+    '''
+    Crop and register two images for training
+    '''
+    # Create output folder
+    in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
+    dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
+    out_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
+
+    # Create paths for registration
+    in_reg_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    dest_ones = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones_reg = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
+    for_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
+    inv_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+
+    # Create QC path
+    qc_path = os.path.join(derivatives_folder, 'qc')
+
+    # Create paths for cropping
+    input_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
+
+    # Create output directory
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
+    
+    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+        if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
+            # Set image orientation to RSP
+            out=subprocess.run(['sct_image',
+                                    '-i', in_path,
+                                    '-setorient', 'RSP'])
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            out=subprocess.run(['sct_image',
+                                    '-i', in_sc_path,
+                                    '-setorient', 'RSP'])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            out=subprocess.run(['sct_image',
+                                    '-i', dest_sc_path,
+                                    '-setorient', 'RSP'])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            out=subprocess.run(['sct_image',
+                                    '-i', dest_path,
+                                    '-setorient', 'RSP'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Create a coverage mask with ones to know find the shared fov
+            out=subprocess.run(['sct_create_mask',
+                                '-i', in_path,
+                                '-o', in_ones,
+                                '-size', '500',
+                                '-p', 'center'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            out=subprocess.run(['sct_create_mask',
+                                '-i', dest_path,
+                                '-o', dest_ones,
+                                '-size', '500',
+                                '-p', 'center'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            # Register input_image to destination_image
+            out=subprocess.run(['sct_register_multimodal',
+                                '-i', in_path,
+                                '-d', dest_path,
+                                '-identity', '1', # No registration is actually performed here just padding
+                                '-x', 'nn',
+                                '-qc', qc_path,
+                                '-qc-subject', in_subjectID,
+                                '-o', in_reg_path,
+                                '-owarp', for_warp_path,
+                                '-owarpinv', inv_warp_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Bring coverage to destination space
+            out=subprocess.run(['sct_apply_transfo',
+                                '-i', in_ones,
+                                '-d', dest_path,
+                                '-w', for_warp_path,
+                                '-x', 'linear',
+                                '-o', in_ones_reg])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+        
+        if not os.path.exists(mask_path):
+            # Multiply with one reg to extract the shared fov between the 2 images
+            out=subprocess.run(['sct_maths',
+                                    '-i', dest_ones,
+                                    '-mul', in_ones_reg,
+                                    '-o', mask_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+        
+        # Crop registered contrast
+        out=subprocess.run(['sct_crop_image',
+                                '-i', in_reg_path,
+                                '-m', mask_path,
+                                '-o', input_crop_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+
+        # Crop dest contrast
+        out=subprocess.run(['sct_crop_image',
+                                '-i', dest_path,
+                                '-m', mask_path,
+                                '-o', dest_crop_path])
+
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+
+    return (0, ''), input_crop_path, dest_crop_path
 
 ##
 def load_nifti(path_im, dim='3D', orientation='RSP'):

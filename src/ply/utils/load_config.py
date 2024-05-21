@@ -2,7 +2,7 @@ import os
 from progress.bar import Bar
 
 from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont, fetch_subject_and_session
-from ply.utils.utils import img2label, apply_preprocessing, registerNcrop
+from ply.utils.utils import img2label, apply_preprocessing, registerNcrop, registerNoSC
 from ply.utils.plot import plot_discs_distribution
 from ply.utils.image import Image
 from ply.utils.plot import save_violin
@@ -122,27 +122,31 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
         input_sc_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_LABEL'])
         target_img_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_IMAGE'])
         target_sc_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_LABEL'])
-        if not os.path.exists(input_img_path) or not os.path.exists(target_img_path) or not os.path.exists(input_sc_path) or not os.path.exists(target_sc_path):
+        if not os.path.exists(input_img_path) or not os.path.exists(target_img_path):
             #raise ValueError(f'Error while loading subject\n {input_img_path}, {target_img_path}, {input_sc_path} or {target_sc_path} might not exist')
             err.append([input_sc_path, 'path error'])
+        elif not os.path.exists(input_sc_path) or not os.path.exists(target_sc_path):
+            # Register
+            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_NoSC')
+            errcode, target_path, img_path = registerNoSC(in_path=target_img_path, dest_path=input_img_path, derivatives_folder=derivatives_path)
         else:
             # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_InputT2w')
-            errcode, target_path, img_path = registerNcrop(in_path=target_img_path, dest_path=input_img_path, in_sc_path=target_sc_path, dest_sc_path=input_sc_path, derivatives_folder=derivatives_path)
-            if errcode[0] != 0:
-                err.append([input_sc_path, errcode[1]])
-            # Output paths using MONAI load_decathlon_datalist format
-            else:
-                if plot:
-                    img = Image(img_path).change_orientation('RSP')
-                    nx, ny, nz, nt, px, py, pz, pt = img.dim
-                    R.append(nx)
-                    S.append(ny)
-                    P.append(nz)
-                    pR.append(px)
-                    pS.append(py)
-                    pP.append(pz)
-                out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
+            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_NoSC')
+            errcode, target_path, img_path = registerNoSC(in_path=target_img_path, dest_path=input_img_path, derivatives_folder=derivatives_path)
+        if errcode[0] != 0:
+            err.append([input_sc_path, errcode[1]])
+        # Output paths using MONAI load_decathlon_datalist format
+        else:
+            if plot:
+                img = Image(img_path).change_orientation('RSP')
+                nx, ny, nz, nt, px, py, pz, pt = img.dim
+                R.append(nx)
+                S.append(ny)
+                P.append(nz)
+                pR.append(px)
+                pS.append(py)
+                pP.append(pz)
+            out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
