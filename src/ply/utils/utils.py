@@ -60,27 +60,28 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
     '''
     Crop and register two images for training
     '''
+    # Create output folder
     in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
-    dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
-    in_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
-    dest_folder = os.path.join(derivatives_folder, dest_subjectID, dest_sessionID, dest_contrast)
-    in_reg_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
-    in_ones = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
-    in_ones_reg = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
-    for_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
-    inv_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+    out_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
+
+    # Create paths for registration
+    in_reg_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    in_ones = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones_reg = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
+    for_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
+    inv_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+
+    # Create QC path
     qc_path = os.path.join(derivatives_folder, 'qc')
 
-    input_crop_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    mask_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
+    # Create paths for cropping
+    input_crop_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
 
-    # Create directories
-    if not os.path.exists(in_folder):
-        os.makedirs(in_folder)
-    
-    if not os.path.exists(dest_folder):
-        os.makedirs(dest_folder)
+    # Create output directory
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
     
     if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
         if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
@@ -112,7 +113,7 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
             
-            # Create a coverage mask with ones where the spinal cord is present
+            # Create a coverage mask with ones to know where the spinal cord is present
             out=subprocess.run(['sct_create_mask',
                                 '-i', in_path,
                                 '-o', in_ones,
