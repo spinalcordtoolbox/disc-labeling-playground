@@ -29,15 +29,22 @@ def init_data_config(args):
         file_paths = label_paths + img_paths
     elif args.type == 'IMAGE':
         img_paths = file_paths
-    elif args.type == 'CONTRAST':
+    elif args.type == 'CONTRAST-SC':
         if not args.cont: # If the target contrast is not specified
-            raise ValueError(f'When using the type CONTRAST, please specify the target contrast using the flag "--cont"')
+            raise ValueError(f'When using the type CONTRAST-SC, please specify the target contrast using the flag "--cont"')
         target_contrast = args.cont
         label_paths_input = file_paths
         label_paths_target = [get_cont_path_from_other_cont(lp, target_contrast) for lp in label_paths_input]
         img_paths_input = [get_img_path_from_label_path(lp) for lp in label_paths_input]
         img_paths_target = [get_img_path_from_label_path(lp) for lp in label_paths_target]
         file_paths = label_paths_input + label_paths_target + img_paths_input + img_paths_target
+    elif args.type == 'CONTRAST':
+        if not args.cont: # If the target contrast is not specified
+            raise ValueError(f'When using the type CONTRAST, please specify the target contrast using the flag "--cont"')
+        target_contrast = args.cont
+        img_paths_input = file_paths
+        img_paths_target = [get_cont_path_from_other_cont(ip, target_contrast) for ip in img_paths_input]
+        file_paths = img_paths_input + img_paths_target
     else:
         raise ValueError(f"invalid args.type: {args.type}")
     missing_paths = [
@@ -76,7 +83,7 @@ def init_data_config(args):
                 'IMAGE':ip.split(dataset_parent_path + '/')[-1], # Remove DATASETS_PATH
                 'LABEL':lp.split(dataset_parent_path + '/')[-1]
             })
-    elif args.type == 'CONTRAST':
+    elif args.type == 'CONTRAST-SC':
         config_paths = []
         for img_path_input, img_path_target, label_path_input, label_path_target in zip(img_paths_input, img_paths_target, label_paths_input, label_paths_target):
             config_paths.append({
@@ -84,6 +91,13 @@ def init_data_config(args):
                 'INPUT_LABEL':label_path_input.split(dataset_parent_path + '/')[-1],
                 'TARGET_IMAGE':img_path_target.split(dataset_parent_path + '/')[-1],
                 'TARGET_LABEL':label_path_target.split(dataset_parent_path + '/')[-1],
+            })
+    elif args.type == 'CONTRAST':
+        config_paths = []
+        for img_path_input, img_path_target in zip(img_paths_input, img_paths_target):
+            config_paths.append({
+                'INPUT_IMAGE':img_path_input.split(dataset_parent_path + '/')[-1], # Remove DATASETS_PATH
+                'TARGET_IMAGE':img_path_target.split(dataset_parent_path + '/')[-1],
             })
     else:
         config_paths = [{'IMAGE':path.split(dataset_parent_path + '/')[-1]} for path in img_paths] # Remove DATASETS_PATH
@@ -117,10 +131,10 @@ if __name__ == '__main__':
     ## Parameters
     parser.add_argument('--txt', required=True,
                         help='Path to TXT file that contains only image or label paths. (Required)')
-    parser.add_argument('--type', choices=('LABEL', 'IMAGE', 'CONTRAST'),
-                        help='Type of paths specified. Choices are "LABEL", "IMAGE" or "CONTRAST". (Required)')
+    parser.add_argument('--type', choices=('LABEL', 'IMAGE', 'CONTRAST-SC', 'CONTRAST'),
+                        help='Type of paths specified. Choices are "LABEL", "IMAGE", "CONTRAST-SC" or "CONTRAST". (Required)')
     parser.add_argument('--cont', type=str, default='',
-                        help='If the type CONTRAST is selected, this variable specifies the wanted contrast for target.')
+                        help='If the type CONTRAST or CONTRAST-SC is selected, this variable specifies the wanted contrast for target.')
     parser.add_argument('--split-validation', type=float, default=0.1,
                         help='Split ratio for validation. Default=0.1')
     parser.add_argument('--split-test', type=float, default=0.1,
