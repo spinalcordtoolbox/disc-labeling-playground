@@ -227,12 +227,9 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
     for_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
     inv_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
 
-    # Create QC path
-    qc_path = os.path.join(derivatives_folder, 'qc')
-
     # Create paths for cropping
-    input_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    dest_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    input_crop_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
     mask_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
 
     # Create output directory
@@ -245,20 +242,6 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
             out=subprocess.run(['sct_image',
                                     '-i', in_path,
                                     '-setorient', 'RSP'])
-            if out.returncode != 0:
-                return (1, " ".join(out.args)), '', ''
-            
-            out=subprocess.run(['sct_image',
-                                    '-i', in_sc_path,
-                                    '-setorient', 'RSP'])
-            
-            if out.returncode != 0:
-                return (1, " ".join(out.args)), '', ''
-
-            out=subprocess.run(['sct_image',
-                                    '-i', dest_sc_path,
-                                    '-setorient', 'RSP'])
-            
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
 
@@ -294,8 +277,6 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
                                 '-d', dest_path,
                                 '-identity', '1', # No registration is actually performed here just padding
                                 '-x', 'nn',
-                                '-qc', qc_path,
-                                '-qc-subject', in_subjectID,
                                 '-o', in_reg_path,
                                 '-owarp', for_warp_path,
                                 '-owarpinv', inv_warp_path])
