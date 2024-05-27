@@ -109,14 +109,12 @@ def main():
     print('loading images...')
     train_list, err_train = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            split='TRAINING',
-                                            plot=False
+                                            split='TRAINING'
                                             )
     
     val_list, err_val = fetch_and_preproc_config_cGAN(
                                             config_data=config_data,
-                                            split='VALIDATION',
-                                            plot=False
+                                            split='VALIDATION'
                                             )
     
     # Define transforms
