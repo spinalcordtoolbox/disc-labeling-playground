@@ -1,8 +1,11 @@
 import os
 from progress.bar import Bar
+import cv2
+import numpy as np
+from skimage.metrics import structural_similarity
 
 from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont, fetch_subject_and_session
-from ply.utils.utils import img2label, apply_preprocessing, registerNcrop, registerNoSC
+from ply.utils.utils import img2label, apply_preprocessing, registerNcrop, registerNoSC, normalize
 from ply.utils.plot import plot_discs_distribution
 from ply.utils.image import Image
 from ply.utils.plot import save_violin
@@ -91,7 +94,7 @@ def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='T
 
 
 ##
-def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
+def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', qc=True):
     '''
     :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
     :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
@@ -102,7 +105,7 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
         ]
     '''
     # Plot lists
-    if plot:
+    if qc:
         R, S, P, pR, pS, pP = [], [], [], [], [], []
 
     # Check config type to ensure that labels paths are specified and not images
@@ -119,27 +122,63 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
     out_decathlon_monai = []
     for di in dict_list:
         input_img_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_IMAGE'])
-        input_sc_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_LABEL'])
         target_img_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_IMAGE'])
-        target_sc_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_LABEL'])
+        derivatives_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_IMAGE'].split('/')[0], 'derivatives/regNcrop_NoSC')
         if not os.path.exists(input_img_path) or not os.path.exists(target_img_path):
-            #raise ValueError(f'Error while loading subject\n {input_img_path}, {target_img_path}, {input_sc_path} or {target_sc_path} might not exist')
-            err.append([input_sc_path, 'path error'])
-        elif not os.path.exists(input_sc_path) or not os.path.exists(target_sc_path):
-            # Register
-            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_NoSC')
-            errcode, target_path, img_path = registerNoSC(in_path=target_img_path, dest_path=input_img_path, derivatives_folder=derivatives_path)
+            err.append([input_img_path, 'path error'])
         else:
-            # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_NoSC')
+            # Register
             errcode, target_path, img_path = registerNoSC(in_path=target_img_path, dest_path=input_img_path, derivatives_folder=derivatives_path)
         if errcode[0] != 0:
-            err.append([input_sc_path, errcode[1]])
+            err.append([input_img_path, errcode[1]])
         # Output paths using MONAI load_decathlon_datalist format
         else:
-            if plot:
+            if qc:
                 img = Image(img_path).change_orientation('RSP')
+                target = Image(target_path).change_orientation('RSP')
+
+                img.data = normalize(img.data.astype(np.float32))
+                target.data = normalize(target.data.astype(np.float32))
+
                 nx, ny, nz, nt, px, py, pz, pt = img.dim
+
+                test = np.zeros([s*2 for s in img.data.shape[1:]])
+                test[::2,1::2]=test[1::2,::2]=img.data[nx//2,:,:]
+                test[::2,::2]=test[1::2,1::2]=target.data[nx//2,:,:]
+                qc_sag_path = os.path.join(derivatives_path,'qc', 'sag')
+                if not os.path.exists(qc_sag_path):
+                    os.makedirs(qc_sag_path)
+                cv2.imwrite(os.path.join(qc_sag_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
+                
+                test = np.zeros([s*2 for s in (img.data.shape[0],img.data.shape[-1])])
+                test[::2,1::2]=test[1::2,::2]=img.data[:,ny//2,:]
+                test[::2,::2]=test[1::2,1::2]=target.data[:,ny//2,:]
+                qc_ax_path = os.path.join(derivatives_path,'qc', 'ax')
+                if not os.path.exists(qc_ax_path):
+                    os.makedirs(qc_ax_path)
+                cv2.imwrite(os.path.join(qc_ax_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
+
+
+                # Use filter to highlight edges
+                # Sagittal view
+                # img_gaus_sag = cv2.GaussianBlur(img.data[nx//2,:,:], (3, 3), 0)
+                # img_lap_sag = cv2.Laplacian(img_gaus_sag, cv2.CV_32F, ksize=3)
+                # target_gaus_sag = cv2.GaussianBlur(target.data[nx//2,:,:], (3, 3), 0)
+                # target_lap_sag = cv2.Laplacian(target_gaus_sag, cv2.CV_32F, ksize=3)
+
+                # # Axial view
+                # img_gaus_ax = cv2.GaussianBlur(img.data[:,ny//2,:], (3, 3), 0)
+                # img_lap_ax = cv2.Laplacian(img_gaus_ax, cv2.CV_32F, ksize=3)
+                # target_gaus_ax = cv2.GaussianBlur(target.data[:,ny//2,:], (3, 3), 0)
+                # target_lap_ax = cv2.Laplacian(target_gaus_ax, cv2.CV_32F, ksize=3)
+                
+                # # Coronal view
+                # img_gaus_cor = cv2.GaussianBlur(img.data[:, :, nz//2], (3, 3), 0)
+                # img_lap_cor = cv2.Laplacian(img_gaus_cor, cv2.CV_32F, ksize=3)
+                # target_gaus_cor = cv2.GaussianBlur(target.data[:,ny//2,:], (3, 3), 0)
+                # target_lap_cor = cv2.Laplacian(target_gaus_cor, cv2.CV_32F, ksize=3)
+
+
                 R.append(nx)
                 S.append(ny)
                 P.append(nz)
@@ -152,7 +191,7 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', plot=True):
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
         bar.next()
     bar.finish()
-    if plot:
+    if qc:
         # Save plot
         save_violin([R,S,P], 'size.png', x_names=['R','S','P'], x_axis='axis', y_axis='size (pixel)')
         save_violin([pR,pS,pP], 'res.png', x_names=['R','S','P'], x_axis='axis', y_axis='resolution (mm/pixel)')
