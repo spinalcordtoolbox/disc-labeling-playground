@@ -306,6 +306,23 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
         
+        # Set pixels out of this mask to zero
+        out=subprocess.run(['sct_maths',
+                                '-i', in_reg_path,
+                                '-mul', mask_path,
+                                '-o', in_reg_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+        
+        out=subprocess.run(['sct_maths',
+                                '-i', dest_path,
+                                '-mul', mask_path,
+                                '-o', dest_crop_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+        
         # Crop registered contrast
         out=subprocess.run(['sct_crop_image',
                                 '-i', in_reg_path,
@@ -317,7 +334,7 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
 
         # Crop dest contrast
         out=subprocess.run(['sct_crop_image',
-                                '-i', dest_path,
+                                '-i', dest_crop_path,
                                 '-m', mask_path,
                                 '-o', dest_crop_path])
 
