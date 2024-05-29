@@ -142,42 +142,25 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', qc=True):
 
                 nx, ny, nz, nt, px, py, pz, pt = img.dim
 
-                test = np.zeros([s*2 for s in img.data.shape[1:]])
-                test[::2,1::2]=test[1::2,::2]=img.data[nx//2,:,:]
-                test[::2,::2]=test[1::2,1::2]=target.data[nx//2,:,:]
+                test = np.zeros([s*2 for s in img.data.shape[1:]]+[3])
+                test[::2,1::2,0]=test[1::2,::2,0]=img.data[nx//2,:,:]
+                test[::2,1::2,1]=test[1::2,::2,1]=img.data[nx//2,:,:]
+                test[::2,::2,2]=test[1::2,1::2,2]=target.data[nx//2,:,:]
+                test[::2,::2,1]=test[1::2,1::2,1]=target.data[nx//2,:,:]
                 qc_sag_path = os.path.join(derivatives_path,'qc', 'sag')
                 if not os.path.exists(qc_sag_path):
                     os.makedirs(qc_sag_path)
                 cv2.imwrite(os.path.join(qc_sag_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
                 
-                test = np.zeros([s*2 for s in (img.data.shape[0],img.data.shape[-1])])
-                test[::2,1::2]=test[1::2,::2]=img.data[:,ny//2,:]
-                test[::2,::2]=test[1::2,1::2]=target.data[:,ny//2,:]
+                test = np.zeros([s*2 for s in (img.data.shape[0],img.data.shape[-1])]+[3])
+                test[::2,1::2,0]=test[1::2,::2,0]=img.data[:,ny//2,:]
+                test[::2,1::2,1]=test[1::2,::2,1]=img.data[:,ny//2,:]
+                test[::2,::2,2]=test[1::2,1::2,2]=target.data[:,ny//2,:]
+                test[::2,::2,1]=test[1::2,1::2,1]=target.data[:,ny//2,:]
                 qc_ax_path = os.path.join(derivatives_path,'qc', 'ax')
                 if not os.path.exists(qc_ax_path):
                     os.makedirs(qc_ax_path)
                 cv2.imwrite(os.path.join(qc_ax_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
-
-
-                # Use filter to highlight edges
-                # Sagittal view
-                # img_gaus_sag = cv2.GaussianBlur(img.data[nx//2,:,:], (3, 3), 0)
-                # img_lap_sag = cv2.Laplacian(img_gaus_sag, cv2.CV_32F, ksize=3)
-                # target_gaus_sag = cv2.GaussianBlur(target.data[nx//2,:,:], (3, 3), 0)
-                # target_lap_sag = cv2.Laplacian(target_gaus_sag, cv2.CV_32F, ksize=3)
-
-                # # Axial view
-                # img_gaus_ax = cv2.GaussianBlur(img.data[:,ny//2,:], (3, 3), 0)
-                # img_lap_ax = cv2.Laplacian(img_gaus_ax, cv2.CV_32F, ksize=3)
-                # target_gaus_ax = cv2.GaussianBlur(target.data[:,ny//2,:], (3, 3), 0)
-                # target_lap_ax = cv2.Laplacian(target_gaus_ax, cv2.CV_32F, ksize=3)
-                
-                # # Coronal view
-                # img_gaus_cor = cv2.GaussianBlur(img.data[:, :, nz//2], (3, 3), 0)
-                # img_lap_cor = cv2.Laplacian(img_gaus_cor, cv2.CV_32F, ksize=3)
-                # target_gaus_cor = cv2.GaussianBlur(target.data[:,ny//2,:], (3, 3), 0)
-                # target_lap_cor = cv2.Laplacian(target_gaus_cor, cv2.CV_32F, ksize=3)
-
 
                 R.append(nx)
                 S.append(ny)
