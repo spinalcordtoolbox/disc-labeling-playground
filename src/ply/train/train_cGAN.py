@@ -28,7 +28,7 @@ from monai.transforms import (
     NormalizeIntensityd
 )
 
-from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize
+from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_reg_rgb
 from ply.utils.config2parser import parser2config
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
@@ -414,6 +414,9 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
 
+        # QC data
+        # qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
+    
         with torch.cuda.amp.autocast():
             # Get output from generator
             y_fake = generator(x)
