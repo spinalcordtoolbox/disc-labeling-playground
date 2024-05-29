@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import datetime
 import numpy as np
+import cv2
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -422,3 +423,33 @@ def tmp_create(basename):
 ##
 def tuple2string(t):
     return str(t).replace(' ', '').replace('(','').replace(')','').replace(',','-')
+
+##
+def qc_reg_rgb(image_name, image, target, qc_path):
+    '''
+    QC registration between image and target
+    '''
+    image = normalize(image.astype(np.float32))
+    target = normalize(target.astype(np.float32))
+
+    nx, ny, nz = image.shape
+
+    out_sag = np.zeros([s*2 for s in (ny, nz)]+[3])
+    out_sag[::2,1::2,0]=out_sag[1::2,::2,0]=image[nx//2,:,:]
+    out_sag[::2,1::2,1]=out_sag[1::2,::2,1]=image[nx//2,:,:]
+    out_sag[::2,::2,2]=out_sag[1::2,1::2,2]=target[nx//2,:,:]
+    out_sag[::2,::2,1]=out_sag[1::2,1::2,1]=target[nx//2,:,:]
+    qc_sag_path = os.path.join(qc_path, 'sag')
+    if not os.path.exists(qc_sag_path):
+        os.makedirs(qc_sag_path)
+    cv2.imwrite(os.path.join(qc_sag_path, image_name.replace('.nii.gz', '.png')), out_sag*255)
+    
+    out_ax = np.zeros([s*2 for s in (nx,nz)]+[3])
+    out_ax[::2,1::2,0]=out_ax[1::2,::2,0]=image[:,ny//2,:]
+    out_ax[::2,1::2,1]=out_ax[1::2,::2,1]=image[:,ny//2,:]
+    out_ax[::2,::2,2]=out_ax[1::2,1::2,2]=target[:,ny//2,:]
+    out_ax[::2,::2,1]=out_ax[1::2,1::2,1]=target[:,ny//2,:]
+    qc_ax_path = os.path.join(qc_path, 'ax')
+    if not os.path.exists(qc_ax_path):
+        os.makedirs(qc_ax_path)
+    cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
