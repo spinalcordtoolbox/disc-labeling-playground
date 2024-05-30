@@ -201,7 +201,7 @@ def main():
                             batch_size=args.batch_size,
                             shuffle=True, 
                             num_workers=5, 
-                            pin_memory=True, 
+                            pin_memory=False, 
                             persistent_workers=False
                             ) 
     
@@ -210,7 +210,7 @@ def main():
                         batch_size=args.batch_size, 
                         shuffle=False, 
                         num_workers=5, 
-                        pin_memory=True, 
+                        pin_memory=False, 
                         persistent_workers=False
                         )
 
