@@ -186,13 +186,13 @@ def main():
                             data=train_list,
                             transform=train_transforms,
                             cache_rate=0.25,
-                            num_workers=2,
+                            num_workers=5,
                             )
     val_ds = CacheDataset(
                         data=val_list,
                         transform=val_transforms,
                         cache_rate=0.25,
-                        num_workers=2,
+                        num_workers=5,
                         )
 
     # Define train and val DataLoader
@@ -200,7 +200,7 @@ def main():
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=2, 
+                            num_workers=5, 
                             pin_memory=True, 
                             persistent_workers=True
                             ) 
@@ -209,7 +209,7 @@ def main():
                         val_ds, 
                         batch_size=args.batch_size, 
                         shuffle=False, 
-                        num_workers=2, 
+                        num_workers=5, 
                         pin_memory=True, 
                         persistent_workers=True
                         )
