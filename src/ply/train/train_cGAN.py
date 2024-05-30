@@ -122,9 +122,9 @@ def main():
     
     # Define transforms
     # Max with pixdim=(1, 1, 1)
-    # R max =  51
-    # S max =  234
-    # P max =  156
+    # R max =  61
+    # S max =  281
+    # P max =  168
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
@@ -186,13 +186,13 @@ def main():
                             data=train_list,
                             transform=train_transforms,
                             cache_rate=0.25,
-                            num_workers=4,
+                            num_workers=2,
                             )
     val_ds = CacheDataset(
                         data=val_list,
                         transform=val_transforms,
                         cache_rate=0.25,
-                        num_workers=4,
+                        num_workers=2,
                         )
 
     # Define train and val DataLoader
@@ -200,7 +200,7 @@ def main():
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=4, 
+                            num_workers=2, 
                             pin_memory=True, 
                             persistent_workers=True
                             ) 
@@ -209,7 +209,7 @@ def main():
                         val_ds, 
                         batch_size=args.batch_size, 
                         shuffle=False, 
-                        num_workers=4, 
+                        num_workers=2, 
                         pin_memory=True, 
                         persistent_workers=True
                         )
