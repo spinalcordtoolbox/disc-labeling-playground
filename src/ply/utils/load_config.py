@@ -3,6 +3,7 @@ from progress.bar import Bar
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity
+import shutil
 
 from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont, fetch_subject_and_session
 from ply.utils.utils import img2label, apply_preprocessing, registerNcrop, registerNoSC, normalize
@@ -170,8 +171,14 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING', qc=True):
                 pP.append(pz)
             out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
             # Add output if training set
-            if split =='TRAINING':
-                out_decathlon_monai.append({'image':os.path.abspath(target_path), 'label':os.path.abspath(target_path)})
+            if split == 'TRAINING':
+                # Duplicate file to avoid memory issue
+                new_img_path = os.path.abspath(target_path).replace('.nii.gz','_dup1.nii.gz')
+                new_target_path = os.path.abspath(target_path).replace('.nii.gz','_dup2.nii.gz')
+                if not os.path.exists(new_img_path) or not os.path.exists(new_target_path):
+                    shutil.copy(os.path.abspath(target_path), new_img_path)
+                    shutil.copy(os.path.abspath(target_path), new_target_path)
+                out_decathlon_monai.append({'image':new_img_path, 'label':new_target_path})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
