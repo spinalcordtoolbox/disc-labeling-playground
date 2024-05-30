@@ -202,7 +202,7 @@ def main():
                             shuffle=True, 
                             num_workers=5, 
                             pin_memory=True, 
-                            persistent_workers=True
+                            persistent_workers=False
                             ) 
     
     val_loader = DataLoader(
@@ -211,7 +211,7 @@ def main():
                         shuffle=False, 
                         num_workers=5, 
                         pin_memory=True, 
-                        persistent_workers=True
+                        persistent_workers=False
                         )
 
     # Create generator model
