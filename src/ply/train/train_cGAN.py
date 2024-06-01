@@ -136,11 +136,11 @@ def main():
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=pixdim,
-                mode=(interp_mode, interp_mode),
-            ),
+            # Spacingd(
+            #     keys=["image", "label"],
+            #     pixdim=pixdim,
+            #     mode=(interp_mode, interp_mode),
+            # ),
             RandFlipd(
                 keys=["image", "label"],
                 spatial_axis=[0],
@@ -168,11 +168,11 @@ def main():
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),
             Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=pixdim,
-                mode=(interp_mode, interp_mode),
-            ),
+            # Spacingd(
+            #     keys=["image", "label"],
+            #     pixdim=pixdim,
+            #     mode=(interp_mode, interp_mode),
+            # ),
             CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
             RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
