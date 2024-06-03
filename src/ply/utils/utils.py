@@ -85,7 +85,7 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     
-    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+    if not os.path.exists(input_crop_path) or not os.path.exists(dest_crop_path):
         if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
             # Set image orientation to RSP
             out=subprocess.run(['sct_image',
@@ -237,7 +237,7 @@ def registerNoSC(in_path, dest_path, derivatives_folder):
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
     
-    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+    if not os.path.exists(input_crop_path) or not os.path.exists(dest_crop_path):
         if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
             # Set image orientation to RSP
             out=subprocess.run(['sct_image',
