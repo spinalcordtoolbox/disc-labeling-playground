@@ -131,55 +131,98 @@ def main():
         interp_mode = 2
     crop_size = args.crop_size # RSP
     pixdim = args.pixdim
-    train_transforms = Compose(
-        [
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            # Spacingd(
-            #     keys=["image", "label"],
-            #     pixdim=pixdim,
-            #     mode=(interp_mode, interp_mode),
-            # ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[0],
-                prob=0.10,
-            ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[1],
-                prob=0.10,
-            ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[2],
-                prob=0.10,
-            ),
-            CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
-            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
-        ]
-    )
-    val_transforms = Compose(
-        [
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            # Spacingd(
-            #     keys=["image", "label"],
-            #     pixdim=pixdim,
-            #     mode=(interp_mode, interp_mode),
-            # ),
-            CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
-            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
-        ]
-    )
+    
+    # Train or not with pixdim
+    if pixdim != (0,0,0):
+        train_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=pixdim,
+                    mode=(interp_mode, interp_mode),
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[0],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=0.10,
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+        val_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=pixdim,
+                    mode=(interp_mode, interp_mode),
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+    else:
+        train_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[0],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=0.10,
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+        val_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
 
     # Define train and val dataset
     train_ds = CacheDataset(
