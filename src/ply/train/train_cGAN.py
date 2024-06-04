@@ -35,7 +35,7 @@ from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
 from ply.models.criterion import CriterionCGAN
 from ply.models.transform import RandLabelToContourd
-from ply.utils.load_config import fetch_and_preproc_config_cGAN
+from ply.utils.load_config import fetch_image_config_cGAN
 from ply.utils.plot import get_validation_image
 
 
@@ -50,7 +50,7 @@ def get_parser():
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 384, 256), help='Training crop size in RSP orientation(default=(64, 384, 256)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 320, 320), help='Training crop size in RSP orientation(default=(96, 320, 320)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
@@ -108,13 +108,13 @@ def main():
     
     # Load images for training and validation
     print('loading images...')
-    train_list, err_train = fetch_and_preproc_config_cGAN(
+    train_list, err_train = fetch_image_config_cGAN(
                                             config_data=config_data,
                                             split='TRAINING',
                                             qc=False
                                             )
     
-    val_list, err_val = fetch_and_preproc_config_cGAN(
+    val_list, err_val = fetch_image_config_cGAN(
                                             config_data=config_data,
                                             split='VALIDATION',
                                             qc=False
@@ -122,9 +122,13 @@ def main():
     
     # Define transforms
     # Max with pixdim=(1, 1, 1)
-    # R max =  61
-    # S max =  281
-    # P max =  168
+    # R max =  ~280
+    # S max =  282
+    # P max =  282
+    # Max with pixdim=(0.7, 0.7, 0.7)
+    # R max =  ~400
+    # S max =  403
+    # P max =  403
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
@@ -159,7 +163,7 @@ def main():
                     spatial_axis=[2],
                     prob=0.10,
                 ),
-                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
+                #CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -176,7 +180,7 @@ def main():
                     pixdim=pixdim,
                     mode=(interp_mode, interp_mode),
                 ),
-                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
+                #CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -451,10 +455,6 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
-
-        # QC data
-        # qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
-    
         with torch.cuda.amp.autocast():
             # Get output from generator
             y_fake = generator(x)
