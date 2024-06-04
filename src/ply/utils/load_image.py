@@ -3,7 +3,7 @@ import subprocess
 import shutil
 from ply.utils.utils import cropWithSC
 
-def fetch_and_preproc_image_cGAN(path_in, path_seg, tmpdir):
+def fetch_and_preproc_image_cGAN_withSeg(path_in, path_seg, tmpdir):
     '''
     :param path_in: Path to the input image
     :param path_seg: Path to the input SC segmentation
@@ -39,6 +39,41 @@ def fetch_and_preproc_image_cGAN(path_in, path_seg, tmpdir):
     temp_in_crop_path = cropWithSC(temp_in_path, temp_seg_path, tmpdir)
 
     return [{'image': temp_in_crop_path}]
+
+
+def fetch_and_preproc_image_cGAN_NoSeg(path_in, tmpdir):
+    '''
+    :param path_in: Path to the input image
+    :param tmpdir: Path to tempdirectory
+    :return: out_decathlon_monai: list of dictionary with the preprocessed image path (like monai load_decathlon_datalist)
+        [
+            {'image': '/workspace/data/chest_19.nii.gz',
+        ]
+    '''
+    # Check if paths exist
+    path_in = os.path.abspath(path_in)
+    if not os.path.exists(path_in):
+        raise ValueError(f'Error with path: {path_in} does not exist')
+    
+    # Create temp_in and temp_seg
+    temp_in_path = os.path.join(tmpdir, os.path.basename(path_in))
+    shutil.copyfile(path_in, temp_in_path)
+
+    # Reorient images to RSP using SCT
+    print('Reorienting images to RSP...')
+    subprocess.check_call(['sct_image',
+                        '-i', temp_in_path,
+                        '-setorient', 'RSP'])
+
+    temp_res = temp_in_path.replace('.nii.gz', '_res.nii.gz')
+    print('Resampling images to 4.8x0.7x0.7...')
+    subprocess.check_call(['sct_resample',
+                        '-i', temp_in_path,
+                        '-o', temp_res,
+                        '-mm', '4.8x0.7x0.7'])
+
+
+    return [{'image': temp_res}]
 
     
     
