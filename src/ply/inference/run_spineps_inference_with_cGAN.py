@@ -99,54 +99,46 @@ def main():
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),
             Orientationd(keys=["image"], axcodes="LIA"), # RSP- --> LIA+
-            # Spacingd(
-            #     keys=["image"],
-            #     pixdim=(4.8,0.7,0.7),
-            #     mode=(interpolation),
-            # ),
-            CenterScaleCropd(keys=["image"], roi_scale=(0.5, 0.9, 0.5),),
+            Spacingd(
+                keys=["image"],
+                pixdim=pixdim,
+                mode=(interpolation),
+            ),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
             LabelToContourd(keys=["image"], kernel_type='Laplace'),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
         ]
     )
 
-    inv_transforms = Compose([
-                EnsureTyped(keys=["pred"]),
-                Invertd(keys=["pred"], transform=test_transforms, 
-                        orig_keys=["image"], 
-                        nearest_interp=False, to_tensor=True),
-        ])
+    split_test_transforms1 = Compose(
+        [
+            LoadImaged(keys=["image"]),
+            EnsureChannelFirstd(keys=["image"]),
+            Orientationd(keys=["image"], axcodes="LIA"), # RSP- --> LIA+
+            Spacingd(
+                keys=["image"],
+                pixdim=pixdim,
+                mode=("bilinear"),
+            )
+        ]
+    )
 
-    # split_test_transforms1 = Compose(
-    #     [
-    #         LoadImaged(keys=["image"]),
-    #         EnsureChannelFirstd(keys=["image"]),
-    #         Orientationd(keys=["image"], axcodes="LIA"), # RSP- --> LIA+
-    #         Spacingd(
-    #             keys=["image"],
-    #             pixdim=pixdim,
-    #             mode=("bilinear"),
-    #         )
-    #     ]
-    # )
+    split_test_transforms2 = Compose(
+        [
+            LabelToContourd(keys=["image"], kernel_type='Laplace'),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+        ]
+    )
 
-    # split_test_transforms2 = Compose(
-    #     [
-    #         LabelToContourd(keys=["image"], kernel_type='Laplace'),
-    #         NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-    #     ]
-    # )
-
-    # def inv_transform(orig_size):
-    #     inv_transforms = Compose([
-    #                 EnsureTyped(keys=["pred"]),
-    #                 Invertd(keys=["pred"], transform=split_test_transforms2, 
-    #                         orig_keys=["image"], 
-    #                         nearest_interp=False, to_tensor=True),
-    #                 ResizeWithPadOrCropd(keys=["pred"], spatial_size=orig_size,),
-    #         ])
-    #     return inv_transforms
+    def inv_transform(orig_size):
+        inv_transforms = Compose([
+                    EnsureTyped(keys=["pred"]),
+                    Invertd(keys=["pred"], transform=split_test_transforms2, 
+                            orig_keys=["image"], 
+                            nearest_interp=False, to_tensor=True),
+                    ResizeWithPadOrCropd(keys=["pred"], spatial_size=orig_size,),
+            ])
+        return inv_transforms
 
     # Define test dataset
     test_ds = CacheDataset(
@@ -156,9 +148,25 @@ def main():
                             num_workers=4,
                             )
 
+    trans1_ds = CacheDataset(
+                            data=img_list,
+                            transform=split_test_transforms1,
+                            cache_rate=0.25,
+                            num_workers=4,
+                            )
+
     # Define test DataLoader
     test_loader = DataLoader(
                             test_ds, 
+                            batch_size=1,
+                            shuffle=False, 
+                            num_workers=4, 
+                            pin_memory=True, 
+                            persistent_workers=True
+                            )
+
+    trans1_loader = DataLoader(
+                            trans1_ds, 
                             batch_size=1,
                             shuffle=False, 
                             num_workers=4, 
@@ -184,7 +192,7 @@ def main():
     print('Starting inference')
     print('-'*40)
     data_iterator = tqdm(test_loader, desc="Run inference", dynamic_ncols=True)
-    for step, batch in enumerate(data_iterator):
+    for step, (batch, batch1) in enumerate(zip(data_iterator, trans1_loader)):
         # Load input
         x = batch["image"].to(device)
 
@@ -192,16 +200,14 @@ def main():
         y_fake = generator(x)
         batch["pred"] = y_fake.data.cpu()
 
-        batch = [inv_transforms(i) for i in decollate_batch(batch)][0]
+        batch1 = [inv_transform(batch1["image"].shape[2:])(i) for i in decollate_batch(batch)][0]
 
-        #batch1 = [inv_transform(batch1["image"].shape[2:])(i) for i in decollate_batch(batch)][0]
-
-        affine = batch['pred'].meta['affine'] # Affine of the upsampled image
+        affine = batch1['pred'].meta['affine'] # Affine of the upsampled image
 
         # Save prediction in its upsampled format
         #path_cGAN_pred = img_list[step]['image'].replace('.nii.gz', '_fakeT2w.nii.gz')
         path_cGAN_pred = os.path.join(out_folder, os.path.basename(img_list[step]['image']).replace('.nii.gz', '_fakeT2w.nii.gz'))
-        nib.save(nib.Nifti1Image(batch["pred"].numpy()[0], affine), path_cGAN_pred)
+        nib.save(nib.Nifti1Image(batch1["pred"].numpy()[0], affine), path_cGAN_pred)
 
         # Run SPINEPS prediction
         subprocess.check_call([
