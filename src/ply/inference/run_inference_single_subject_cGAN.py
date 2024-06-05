@@ -93,7 +93,7 @@ def main():
             Spacingd(
                 keys=["image"],
                 pixdim=pixdim,
-                mode=("bilinear"),
+                mode=2, # spline interpolation
             ),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
             LabelToContourd(keys=["image"], kernel_type='Laplace'),
