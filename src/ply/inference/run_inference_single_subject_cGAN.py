@@ -31,7 +31,7 @@ from monai.transforms import (
 )
 
 from ply.data_management.utils import fetch_subject_and_session
-from ply.utils.load_image import fetch_and_preproc_image_cGAN
+from ply.utils.load_image import fetch_and_preproc_image_cGAN_NoSeg
 from ply.utils.image import Image, zeros_like
 from ply.utils.utils import tmp_create
 
@@ -40,9 +40,8 @@ def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Run cGAN inference on a single subject')
     parser.add_argument('--path-in', type=str, required=True, help='Path to the input image (Required)')
-    parser.add_argument('--path-seg', type=str, required=True, help='Path to the input spinal cord segmentation (Required)')
     parser.add_argument('--path-out', type=str, default='', help='Output path after inference: (Default= --path-in folder)')
-    parser.add_argument('--weight-path', type=str, required=True, help='Path to the network weights. (Required')
+    parser.add_argument('--weight-path', type=str, required=True, help='Path to the network weights. (Required)')
     return parser
 
 
@@ -67,7 +66,6 @@ def main():
     
     # Load variables
     path_in = os.path.abspath(args.path_in)
-    path_seg = os.path.abspath(args.path_seg)
     path_out = path_in.replace('.nii.gz','')+'_desc-crop_fakeT2w.nii.gz' if not args.path_out else args.path_out
     weight_path = os.path.abspath(args.weight_path)
 
@@ -82,7 +80,7 @@ def main():
     print('-'*40)
     print('Loading image with preprocessing')
     print('-'*40)
-    img_list = fetch_and_preproc_image_cGAN(path_in=path_in, path_seg=path_seg, tmpdir=tmpdir)
+    img_list = fetch_and_preproc_image_cGAN_NoSeg(path_in=path_in, tmpdir=tmpdir)
 
     # Define test transforms
     crop_size = tuple(map(int, args.weight_path.split('cropRSP_')[-1].split('_')[0].split('-'))) # RSP
