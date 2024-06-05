@@ -64,16 +64,7 @@ def fetch_and_preproc_image_cGAN_NoSeg(path_in, tmpdir):
     subprocess.check_call(['sct_image',
                         '-i', temp_in_path,
                         '-setorient', 'RSP'])
-
-    temp_res = temp_in_path.replace('.nii.gz', '_res.nii.gz')
-    print('Resampling images to 4.8x0.7x0.7...')
-    subprocess.check_call(['sct_resample',
-                        '-i', temp_in_path,
-                        '-o', temp_res,
-                        '-mm', '4.8x0.7x0.7'])
-
-
-    return [{'image': temp_res}]
+    return [{'image': temp_in_path}]
 
     
     
