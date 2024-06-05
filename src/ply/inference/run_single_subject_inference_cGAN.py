@@ -1,3 +1,9 @@
+"""
+This Python script applies a T2-weighted (T2w) contrast transformation to the input image and then saves the output image using the flag --path-out.
+
+Author: Nathan Molinier
+"""
+
 import logging
 import os
 import sys
@@ -15,6 +21,7 @@ import torch
 import torch.optim as optim
 
 import monai
+from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, CacheDataset, Dataset, decollate_batch
 from monai.networks.nets import UNet, AttentionUnet
 from monai.transforms import (
@@ -50,7 +57,7 @@ def main():
     args = parser.parse_args()
 
     # Use cuda
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")#"cuda" if torch.cuda.is_available() else "cpu")
 
     ## Set seed
     seed = 42
@@ -148,8 +155,14 @@ def main():
         # Load input
         x = batch["image"].to(device)
 
-        # Get output from generator
+        # Use sliding_window_inference from MONAI to deal with bigger images
         y_fake = generator(x)
+        # y_fake = sliding_window_inference(x,
+        #                                   crop_size, 
+        #                                   sw_batch_size=3, 
+        #                                   predictor=generator, 
+        #                                   overlap=0.1, 
+        #                                   progress=False)
 
         # Transform output to its original shape/resolution
         batch["pred"] = y_fake.data.cpu()

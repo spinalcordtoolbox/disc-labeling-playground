@@ -1,3 +1,13 @@
+"""
+This Python script operates based on a single input image to perform the following tasks:
+
+1. T2w Contrast Translation: Applies a T2-weighted (T2w) contrast transformation to the input image.
+2. SPINEPS Inference: Executes SPINEPS inference on the generated synthetic contrast.
+3. Image Saving: Stores the generated images inside the output folder using the flag --ofolder.
+
+Author: Nathan Molinier
+"""
+
 import logging
 import os
 import sys
@@ -42,7 +52,7 @@ from ply.utils.utils import tmp_create
 
 def get_parser():
     # parse command line arguments
-    parser = argparse.ArgumentParser(description='Run cGAN inference on a single subject')
+    parser = argparse.ArgumentParser(description='Run cGAN and SPINEPS inference on a single subject')
     parser.add_argument('--path-in', type=str, required=True, help='Path to the input image (Required)')
     parser.add_argument('--ofolder', type=str, required=True, help='Output folder (Required)')
     parser.add_argument('--weight-path', type=str, required=True, help='Path to the network weights. (Required')
@@ -54,7 +64,7 @@ def main():
     args = parser.parse_args()
 
     # Use cuda
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")#"cuda" if torch.cuda.is_available() else "cpu")
 
     ## Set seed
     seed = 42
