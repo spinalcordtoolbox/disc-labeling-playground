@@ -225,7 +225,10 @@ def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False):
             pR.append(px)
             pS.append(py)
             pP.append(pz)
-        out_decathlon_monai.append({'image':os.path.abspath(input_img_path), 'label':os.path.abspath(input_img_path)})
+        if split != 'TESTING':
+            out_decathlon_monai.append({'image':os.path.abspath(input_img_path), 'label':os.path.abspath(input_img_path)})
+        else:
+            out_decathlon_monai.append({'image':os.path.abspath(input_img_path)})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
