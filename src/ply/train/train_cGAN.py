@@ -51,7 +51,7 @@ def get_parser():
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
     parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 320, 320), help='Training crop size in RSP orientation(default=(96, 320, 320)).')
-    parser.add_argument('--scale-crop', type=tuple_type_int, default=(1, 1, 1), help='Scale crop applied before padding (default=(1, 1, 1)).')
+    parser.add_argument('--scale-crop', type=tuple_type_float, default=(1, 1, 1), help='Scale crop applied before padding (default=(1, 1, 1)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
