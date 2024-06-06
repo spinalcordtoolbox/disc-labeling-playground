@@ -51,6 +51,7 @@ def get_parser():
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
     parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 320, 320), help='Training crop size in RSP orientation(default=(96, 320, 320)).')
+    parser.add_argument('--scale-crop', type=tuple_type_int, default=(1, 1, 1), help='Scale crop applied before padding (default=(1, 1, 1)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
@@ -98,7 +99,7 @@ def main():
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_scaleCrop_{tuple2string(scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -135,6 +136,7 @@ def main():
         interp_mode = 2
     crop_size = args.crop_size # RSP
     pixdim = args.pixdim
+    scale_crop = args.scale_crop
     
     # Train or not with pixdim
     if pixdim != (0,0,0):
@@ -163,7 +165,7 @@ def main():
                     spatial_axis=[2],
                     prob=0.10,
                 ),
-                #CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -180,7 +182,7 @@ def main():
                     pixdim=pixdim,
                     mode=(interp_mode, interp_mode),
                 ),
-                #CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.8, 0.4),),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -208,7 +210,7 @@ def main():
                     spatial_axis=[2],
                     prob=0.10,
                 ),
-                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -220,7 +222,7 @@ def main():
                 LoadImaged(keys=["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-                CenterScaleCropd(keys=["image", "label"], roi_scale=(0.5, 0.9, 0.5),),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -315,7 +317,7 @@ def main():
         discriminator.load_state_dict(torch.load(args.start_disc_weights, map_location=torch.device(device))["discriminator_weights"])
 
     # Path to the saved weights       
-    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
+    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_scaleCrop_{tuple2string(scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
     disc_weights_path = gen_weights_path.replace('gen', 'disc')
 
     # Init criterion
