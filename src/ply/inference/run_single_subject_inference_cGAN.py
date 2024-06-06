@@ -34,7 +34,8 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     LabelToContourd,
     Invertd,
-    EnsureTyped
+    EnsureTyped,
+    CenterScaleCropd
 )
 
 from ply.data_management.utils import fetch_subject_and_session
@@ -92,6 +93,10 @@ def main():
     # Define test transforms
     crop_size = tuple(map(int, args.weight_path.split('cropRSP_')[-1].split('_')[0].split('-'))) # RSP
     pixdim=tuple(map(float, args.weight_path.split('pixdimRSP_')[-1].split('_')[0].split('-')))
+    if 'scaleCrop_' in  args.weight_path:
+        scale_crop=tuple(map(float, args.weight_path.split('scaleCrop_')[-1].split('_')[0].split('-')))
+    else:
+        scale_crop = (1,1,1)
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
@@ -102,6 +107,7 @@ def main():
                 pixdim=pixdim,
                 mode=2, # spline interpolation
             ),
+            CenterScaleCropd(keys=["image"], roi_scale=scale_crop,),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
             LabelToContourd(keys=["image"], kernel_type='Laplace'),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
