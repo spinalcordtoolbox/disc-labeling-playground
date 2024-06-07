@@ -26,7 +26,8 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     CenterScaleCropd,
     RandFlipd,
-    NormalizeIntensityd
+    NormalizeIntensityd,
+    GaussianSmoothd
 )
 
 from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_reg_rgb
@@ -167,7 +168,8 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                GaussianSmoothd(keys=["image"], sigma=2),
+                RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -184,7 +186,8 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                GaussianSmoothd(keys=["image"], sigma=2),
+                RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -212,7 +215,8 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                GaussianSmoothd(keys=["image"], sigma=2),
+                RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -224,7 +228,8 @@ def main():
                 Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                GaussianSmoothd(keys=["image"], sigma=2),
+                RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
