@@ -11,6 +11,7 @@ from monai.utils.type_conversion import convert_to_dst_type
 
 import torch
 import numpy as np
+from ply.utils.utils import normalize
 
 __all__ = ["RandLabelToContourd"]
 
@@ -157,7 +158,7 @@ class LabelToContour(Transform):
                 contour_img = torch.abs(contour_x) + torch.abs(contour_y)
             elif spatial_dims == 3:
                 contour_z = apply_filter(img_, kernel_z)
-                contour_img = torch.abs(contour_x) + torch.abs(contour_y) + torch.abs(contour_z)
+                contour_img = normalize(torch.abs(contour_x) + torch.abs(contour_y) + torch.abs(contour_z))
         contour_img.clamp_(min=0.0, max=1.0)
         output, *_ = convert_to_dst_type(contour_img.squeeze(0), img)
         return output
