@@ -169,7 +169,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                #RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -187,7 +187,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                #RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -216,7 +216,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                #RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -229,7 +229,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                #RandLabelToContourd(keys=["image"], kernel_type='Scharr', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -464,6 +464,7 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
         x, y = (batch["image"].to(device), batch["label"].to(device))
 
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
+        #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
         with torch.cuda.amp.autocast():
             # Get output from generator
             y_fake = generator(x)
