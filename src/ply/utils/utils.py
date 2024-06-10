@@ -453,3 +453,30 @@ def qc_reg_rgb(image_name, image, target, qc_path):
     if not os.path.exists(qc_ax_path):
         os.makedirs(qc_ax_path)
     cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
+
+def qc_side_by_side(image_name, image, target, qc_path):
+    '''
+    QC registration between image and target
+    '''
+    image = normalize(image.astype(np.float32))
+    target = normalize(target.astype(np.float32))
+
+    nx, ny, nz = image.shape
+
+    out_sag = np.zeros([ny, 2*nz])
+    out_sag[:,:nz]= image[nx//2,:,:]
+    out_sag[:,nz:]= target[nx//2,:,:]
+
+    qc_sag_path = os.path.join(qc_path, 'sag')
+    if not os.path.exists(qc_sag_path):
+        os.makedirs(qc_sag_path)
+    cv2.imwrite(os.path.join(qc_sag_path, image_name.replace('.nii.gz', '.png')), out_sag*255)
+    
+    out_ax = np.zeros([nx, 2*nz])
+    out_ax[:,:nz]= image[:,ny//2,:]
+    out_ax[:,nz:]= target[:,ny//2,:]
+
+    qc_ax_path = os.path.join(qc_path, 'ax')
+    if not os.path.exists(qc_ax_path):
+        os.makedirs(qc_ax_path)
+    cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
