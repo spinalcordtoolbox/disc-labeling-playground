@@ -171,8 +171,8 @@ def fetch_and_register_config_cGAN(config_data, split='TRAINING', qc=True):
                 pP.append(pz)
             out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
             # Add output if training set
-            if split == 'TRAINING':
-                out_decathlon_monai.append({'image':os.path.abspath(target_path), 'label':os.path.abspath(target_path)})
+            # if split == 'TRAINING':
+            #     out_decathlon_monai.append({'image':os.path.abspath(target_path), 'label':os.path.abspath(target_path)})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
