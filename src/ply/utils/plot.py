@@ -49,7 +49,7 @@ def save_violin(data, outpath, x_names=['data'], x_axis='data', y_axis='values')
 
     # Make the plot 
     plt.figure()
-    sns.violinplot(x="data", y="values", data=plot_df, width=1)
+    sns.violinplot(x="data", y="values", hue="data", data=plot_df, width=0.5)
     plt.title(f'{y_axis} violin plot')
     plt.xlabel(x_axis, fontsize = 20)
     plt.ylabel(y_axis, fontsize = 20)
