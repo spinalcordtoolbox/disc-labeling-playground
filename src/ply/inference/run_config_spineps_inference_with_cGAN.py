@@ -235,10 +235,18 @@ def main():
             '--ofolder', out_folder
         ])
 
+        # Register the vertebrae segmentation to the original image using only q-form and s-form
+        spine_path = os.path.join(out_folder, os.path.basename(path_image).replace('.nii.gz', '_fakeT2w_label-vert_dseg.nii.gz'))
+        subprocess.run(['sct_register_multimodal',
+                                '-i', spine_path,
+                                '-d', path_image,
+                                '-identity', '1', # Linear registration based on q-form and s-form
+                                '-x', 'nn',
+                                '-o', spine_path])
+
         # Generate QC
         if qc:
             qc_path = os.path.join(derivatives_path, 'qc')
-            spine_path = os.path.join(out_folder, os.path.basename(path_image).replace('.nii.gz', '_fakeT2w_label-vert_dseg.nii.gz'))
             subprocess.check_call([
                                 "sct_qc", 
                                 "-i", path_image,
