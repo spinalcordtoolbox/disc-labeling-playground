@@ -80,7 +80,7 @@ def main():
     
     # Load variables
     config_path = os.path.abspath(args.config)
-    derivatives_folder = os.path.abspath(args.out_derivative)
+    derivatives_folder = args.out_derivative
     weight_path = os.path.abspath(args.weight_path)
     qc = True
 
