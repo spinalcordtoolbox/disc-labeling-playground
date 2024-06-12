@@ -15,7 +15,7 @@ def save_bar(names, values, output_path, x_axis, y_axis):
     '''
             
     # Set position of bar on X axis
-    fig = plt.figure(figsize = (len(names)//2, 5))
+    fig = plt.figure(figsize = (10, 5))
  
     # creating the bar plot
     plt.bar(names, values, width = 0.4)
@@ -48,12 +48,12 @@ def save_violin(data, outpath, x_names=['data'], x_axis='data', y_axis='values')
     sns.set(style="darkgrid")
 
     # Make the plot 
-    plt.figure()
-    sns.violinplot(x="data", y="values", hue="data", data=plot_df, width=0.5)
+    plt.figure(figsize = (10, 10))
+    sns.violinplot(x="data", y="values", hue="data", data=plot_df, width=0.5, cut=0)
     plt.title(f'{y_axis} violin plot')
-    plt.xlabel(x_axis, fontsize = 20)
-    plt.ylabel(y_axis, fontsize = 20)
-    plt.title(y_axis, fontsize = 25)
+    plt.xlabel(x_axis, fontsize = 25)
+    plt.ylabel(y_axis, fontsize = 25)
+    plt.title(y_axis, fontsize = 30)
     
     # Save plot
     plt.savefig(outpath)
