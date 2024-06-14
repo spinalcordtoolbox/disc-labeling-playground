@@ -65,33 +65,3 @@ def fetch_and_preproc_image_cGAN_NoSeg(path_in, tmpdir):
                         '-i', temp_in_path,
                         '-setorient', 'RSP'])
     return [{'image': temp_in_path}]
-
-    
-    
-
-    for path in paths:
-        if 'DATASETS_PATH' in config_data.keys():
-            dest_sc_seg_path = os.path.join(config_data['DATASETS_PATH'], path)
-        else:
-            dest_sc_seg_path = path
-        in_sc_seg_path = get_cont_path_from_other_cont(dest_sc_seg_path, cont)
-        target_path = get_img_path_from_label_path(dest_sc_seg_path)
-        img_path = get_cont_path_from_other_cont(target_path, cont)
-        if not os.path.exists(img_path) or not os.path.exists(target_path) or not os.path.exists(in_sc_seg_path) or not os.path.exists(dest_sc_seg_path):
-            #raise ValueError(f'Error while loading subject\n {img_path}, {target_path}, {in_sc_seg_path} or {dest_sc_seg_path} might not exist')
-            err.append([in_sc_seg_path, 'path error'])
-        else:
-            # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(dest_sc_seg_path.split('derivatives')[0], 'derivatives/regNcrop')
-            errcode, img_path, target_path = registerNcrop(in_path=img_path, dest_path=target_path, in_sc_path=in_sc_seg_path, dest_sc_path=dest_sc_seg_path, derivatives_folder=derivatives_path)
-            if errcode[0] != 0:
-                err.append([in_sc_seg_path, errcode[1]])
-            # Output paths using MONAI load_decathlon_datalist format
-            else:
-                out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
-        
-        # Plot progress
-        bar.suffix  = f'{paths.index(path)+1}/{len(paths)}'
-        bar.next()
-    bar.finish()
-    return out_decathlon_monai, err

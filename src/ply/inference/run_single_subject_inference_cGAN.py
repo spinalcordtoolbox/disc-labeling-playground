@@ -4,17 +4,13 @@ This Python script applies a T2-weighted (T2w) contrast transformation to the in
 Author: Nathan Molinier
 """
 
-import logging
 import os
 import sys
 import shutil
 import numpy as np
-import pandas as pd
 import argparse
 import random
 import json
-import wandb
-import copy
 from tqdm import tqdm
 
 import torch
@@ -38,7 +34,6 @@ from monai.transforms import (
     CenterScaleCropd
 )
 
-from ply.data_management.utils import fetch_subject_and_session
 from ply.utils.load_image import fetch_and_preproc_image_cGAN_NoSeg
 from ply.utils.image import Image, zeros_like
 from ply.utils.utils import tmp_create
