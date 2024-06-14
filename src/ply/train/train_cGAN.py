@@ -112,13 +112,13 @@ def main():
     
     # Load images for training and validation
     print('loading images...')
-    train_list, err_train = fetch_and_register_config_cGAN(
+    train_list, err_train = fetch_image_config_cGAN(
                                             config_data=config_data,
                                             split='TRAINING',
                                             qc=False
                                             )
     
-    val_list, err_val = fetch_and_register_config_cGAN(
+    val_list, err_val = fetch_image_config_cGAN(
                                             config_data=config_data,
                                             split='VALIDATION',
                                             qc=False
@@ -170,7 +170,7 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                #GaussianSmoothd(keys=["image"], sigma=1),
+                GaussianSmoothd(keys=["image"], sigma=0.5),
                 RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
@@ -188,7 +188,7 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                #GaussianSmoothd(keys=["image"], sigma=1),
+                GaussianSmoothd(keys=["image"], sigma=0.5),
                 RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
@@ -217,7 +217,7 @@ def main():
                 ),
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                #GaussianSmoothd(keys=["image"], sigma=1),
+                GaussianSmoothd(keys=["image"], sigma=0.5),
                 RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
@@ -230,7 +230,7 @@ def main():
                 Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-                #GaussianSmoothd(keys=["image"], sigma=1),
+                GaussianSmoothd(keys=["image"], sigma=0.5),
                 RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
