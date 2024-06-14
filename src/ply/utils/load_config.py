@@ -180,8 +180,8 @@ def fetch_and_register_config_cGAN(config_data, split='TRAINING', qc=True):
     bar.finish()
     if qc:
         # Save plot
-        save_violin([R,S,P], 'size.png', x_names=['R','S','P'], x_axis='axis', y_axis='size (pixel)')
-        save_violin([pR,pS,pP], 'res.png', x_names=['R','S','P'], x_axis='axis', y_axis='resolution (mm/pixel)')
+        save_violin([R,S,P], 'size.png', x_names=['R-L','S-I','P-A'], x_axis='Axis', y_axis='Size (pixel)')
+        save_violin([pR,pS,pP], 'res.png', x_names=['R-L','S-I','P-A'], x_axis='Axis', y_axis='Resolution (mm/pixel)')
     return out_decathlon_monai, err
 
 
