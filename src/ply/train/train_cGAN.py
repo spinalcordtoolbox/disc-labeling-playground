@@ -102,7 +102,7 @@ def main():
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_scaleCrop_{tuple2string(args.scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_{input_filter}_{str(args.filter_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_scaleCrop_{tuple2string(args.scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
