@@ -54,6 +54,8 @@ def save_violin(data, outpath, x_names=['data'], x_axis='data', y_axis='values')
     plt.xlabel(x_axis, fontsize = 25)
     plt.ylabel(y_axis, fontsize = 25)
     plt.title(y_axis, fontsize = 30)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
     
     # Save plot
     plt.savefig(outpath)
