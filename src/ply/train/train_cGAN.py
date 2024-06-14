@@ -55,7 +55,8 @@ def get_parser():
     parser.add_argument('--scale-crop', type=tuple_type_float, default=(1, 1, 1), help='Scale crop applied before padding (default=(1, 1, 1)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
-    parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
+    parser.add_argument('--filter', type=str, default='Laplace', help='Filter used with the input data (default=Laplace).')
+    parser.add_argument('--filter-prob', type=float, default=1, help='Probability to apply kernel to input for training (Laplace or Scharr). (default=1).')
     parser.add_argument('--interp-mode', type=str, default='spline', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="spline").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
     parser.add_argument('--g-lr', default=2.5e-2, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-2)')
@@ -94,6 +95,7 @@ def main():
     weight_folder = args.weight_folder
     in_contrast = config_data['CONTRASTS'].replace('_T2w','').replace('T2w_','')
     out_contrast = 'T2w'
+    input_filter = args.filter
 
     if len(out_contrast.split('_'))>1:
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
@@ -169,7 +171,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -187,7 +189,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -216,7 +218,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -229,7 +231,7 @@ def main():
                 CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
                 ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
                 #GaussianSmoothd(keys=["image"], sigma=1),
-                RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
                 NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
                 NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
             ]
@@ -322,7 +324,7 @@ def main():
         discriminator.load_state_dict(torch.load(args.start_disc_weights, map_location=torch.device(device))["discriminator_weights"])
 
     # Path to the saved weights       
-    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_scaleCrop_{tuple2string(scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
+    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_{input_filter}_{str(args.filter_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_scaleCrop_{tuple2string(scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
     disc_weights_path = gen_weights_path.replace('gen', 'disc')
 
     # Init criterion
