@@ -1,5 +1,4 @@
 import numpy as np
-from rich import print as pprint
 from panoptica import UnmatchedInstancePair, Panoptic_Evaluator, NaiveThresholdMatching
 from panoptica.metrics import Metric
 import argparse
@@ -154,14 +153,6 @@ def evaluate_seg_panoptica():
         list_len = len(list(d.values())[0])
         for i in range(list_len):
             w.writerow([d[k][i] for k in key_list])
-        
-        
-
-        
-
-    
-
-    return
 
 
 if __name__=='__main__':
