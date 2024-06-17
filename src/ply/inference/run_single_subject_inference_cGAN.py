@@ -31,12 +31,14 @@ from monai.transforms import (
     LabelToContourd,
     Invertd,
     EnsureTyped,
-    CenterScaleCropd
+    CenterScaleCropd,
+    GaussianSmoothd
 )
 
 from ply.utils.load_image import fetch_and_preproc_image_cGAN_NoSeg
 from ply.utils.image import Image, zeros_like
 from ply.utils.utils import tmp_create
+from ply.models.transform import RandLabelToContourd
 
 
 def get_parser():
@@ -92,6 +94,14 @@ def main():
         scale_crop=tuple(map(float, args.weight_path.split('scaleCrop_')[-1].split('_')[0].split('-')))
     else:
         scale_crop = (1,1,1)
+
+    if "Laplace" in args.weight_path:
+        input_filter = "Laplace"
+        GausSigma = 0
+    else:
+        input_filter = "Scharr"
+        GausSigma = 0.2
+
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
@@ -104,7 +114,8 @@ def main():
             ),
             CenterScaleCropd(keys=["image"], roi_scale=scale_crop,),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
-            LabelToContourd(keys=["image"], kernel_type='Laplace'),
+            GaussianSmoothd(keys=["image"], sigma=GausSigma),
+            RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=1),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
         ]
     )
