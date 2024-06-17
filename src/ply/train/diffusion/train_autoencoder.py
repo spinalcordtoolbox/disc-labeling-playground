@@ -26,22 +26,22 @@ from monai.utils import set_determinism
 from torch.nn import L1Loss, MSELoss
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from utils import KL_loss, define_instance, prepare_brats2d_dataloader, setup_ddp
+from utils import KL_loss, define_instance, setup_ddp, prepare_dataloader
 from visualize_image import visualize_2d_image
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
+    parser = argparse.ArgumentParser(description="PyTorch autoencoder training")
     parser.add_argument(
         "-e",
         "--environment-file",
-        default="./config/environment.json",
+        required=True,
         help="environment json file that stores environment path",
     )
     parser.add_argument(
         "-c",
         "--config-file",
-        default="./config/config_train_32g.json",
+        required=True,
         help="config json file that stores hyper-parameters",
     )
     parser.add_argument("-g", "--gpus", default=1, type=int, help="number of gpus per node")
@@ -78,7 +78,7 @@ def main():
 
     # Step 1: set data loader
     size_divisible = 2 ** (len(args.autoencoder_def["num_channels"]) - 1)
-    train_loader, val_loader = prepare_brats2d_dataloader(
+    train_loader, val_loader = prepare_dataloader(
         args,
         args.autoencoder_train["batch_size"],
         args.autoencoder_train["patch_size"],
