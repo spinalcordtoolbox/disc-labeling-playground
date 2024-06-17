@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import datetime
 import numpy as np
+import cv2
 
 from ply.data_management.utils import get_img_path_from_label_path, fetch_subject_and_session
 from ply.utils.image import Image
@@ -60,30 +61,31 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
     '''
     Crop and register two images for training
     '''
+    # Create output folder
     in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
     dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
-    in_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
-    dest_folder = os.path.join(derivatives_folder, dest_subjectID, dest_sessionID, dest_contrast)
-    in_reg_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
-    in_ones = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
-    in_ones_reg = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
-    for_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
-    inv_warp_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+    out_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
+
+    # Create paths for registration
+    in_reg_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    in_ones = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones_reg = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
+    for_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
+    inv_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+
+    # Create QC path
     qc_path = os.path.join(derivatives_folder, 'qc')
 
-    input_crop_path = os.path.join(in_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    dest_crop_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
-    mask_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
-    sc_intersection_path = os.path.join(dest_folder, dest_filename.split('.nii.gz')[0] + '_SCintersec' + '.nii.gz')
+    # Create paths for cropping
+    input_crop_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
 
-    # Create directories
-    if not os.path.exists(in_folder):
-        os.makedirs(in_folder)
+    # Create output directory
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
     
-    if not os.path.exists(dest_folder):
-        os.makedirs(dest_folder)
-    
-    if not os.path.exists(input_crop_path) and not os.path.exists(dest_crop_path):
+    if not os.path.exists(input_crop_path) or not os.path.exists(dest_crop_path):
         if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
             # Set image orientation to RSP
             out=subprocess.run(['sct_image',
@@ -113,7 +115,7 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
             
-            # Create a coverage mask with ones where the spinal cord is present
+            # Create a coverage mask with ones to know where the spinal cord is present
             out=subprocess.run(['sct_create_mask',
                                 '-i', in_path,
                                 '-o', in_ones,
@@ -152,23 +154,23 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
 
         
         if not os.path.exists(mask_path):
-            # Multiply SC seg to extract the common ground between the 2 images
-            out=subprocess.run(['sct_maths',
-                                    '-i', dest_sc_path,
-                                    '-mul', in_ones_reg,
-                                    '-o', sc_intersection_path])
-            
-            if out.returncode != 0:
-                return (1, " ".join(out.args)), '', ''
-            
             # Create spinalcord mask for cropping see https://spinalcordtoolbox.com/user_section/tutorials/multimodal-registration/contrast-agnostic-registration/preprocessing-t2.html#creating-a-mask-around-the-spinal-cord
             out=subprocess.run(['sct_create_mask',
                                     '-i', in_reg_path,
-                                    '-p', f'centerline,{sc_intersection_path}',
+                                    '-p', f'centerline,{dest_sc_path}',
                                     '-size', '70mm',
                                     '-f', 'cylinder',
                                     '-o', mask_path])
 
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Multiply with one reg to extract the shared fov between the 2 images
+            out=subprocess.run(['sct_maths',
+                                    '-i', mask_path,
+                                    '-mul', in_ones_reg,
+                                    '-o', mask_path])
+            
             if out.returncode != 0:
                 return (1, " ".join(out.args)), '', ''
         
@@ -208,6 +210,139 @@ def registerNcrop(in_path, dest_path, in_sc_path, dest_sc_path, derivatives_fold
                                     '-qc', qc_path])
     return (0, ''), input_crop_path, dest_crop_path
 
+##
+def registerNoSC(in_path, dest_path, derivatives_folder):
+    '''
+    Crop and register two images for training
+    '''
+    # Create output folder
+    in_subjectID, in_sessionID, in_filename, in_contrast, in_echoID, in_acquisition = fetch_subject_and_session(in_path)
+    dest_subjectID, dest_sessionID, dest_filename, dest_contrast, dest_echoID, dest_acquisition = fetch_subject_and_session(dest_path)
+    out_folder = os.path.join(derivatives_folder, in_subjectID, in_sessionID, in_contrast)
+
+    # Create paths for registration
+    in_reg_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg' + '.nii.gz')
+    dest_ones = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones' + '.nii.gz')
+    in_ones_reg = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_ones_reg' + '.nii.gz')
+    for_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_forwarp' + '.nii.gz')
+    inv_warp_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_invwarp' + '.nii.gz')
+
+    # Create paths for cropping
+    input_crop_path = os.path.join(out_folder, in_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    dest_crop_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_reg_crop' + '.nii.gz')
+    mask_path = os.path.join(out_folder, dest_filename.split('.nii.gz')[0] + '_interSCmask' + '.nii.gz')
+
+    # Create output directory
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
+    
+    if not os.path.exists(input_crop_path) or not os.path.exists(dest_crop_path):
+        if not os.path.exists(in_reg_path) or not os.path.exists(in_ones_reg) or not os.path.exists(for_warp_path) or not os.path.exists(inv_warp_path):
+            # Set image orientation to RSP
+            out=subprocess.run(['sct_image',
+                                    '-i', in_path,
+                                    '-setorient', 'RSP'])
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            out=subprocess.run(['sct_image',
+                                    '-i', dest_path,
+                                    '-setorient', 'RSP'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Create a coverage mask with ones to know find the shared fov
+            out=subprocess.run(['sct_create_mask',
+                                '-i', in_path,
+                                '-o', in_ones,
+                                '-size', '500',
+                                '-p', 'center'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            out=subprocess.run(['sct_create_mask',
+                                '-i', dest_path,
+                                '-o', dest_ones,
+                                '-size', '500',
+                                '-p', 'center'])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+            # Register input_image to destination_image
+            out=subprocess.run(['sct_register_multimodal',
+                                '-i', in_path,
+                                '-d', dest_path,
+                                '-identity', '1', # No registration is actually performed here just padding
+                                '-x', 'nn',
+                                '-o', in_reg_path,
+                                '-owarp', for_warp_path,
+                                '-owarpinv', inv_warp_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+            
+            # Bring coverage to destination space
+            out=subprocess.run(['sct_apply_transfo',
+                                '-i', in_ones,
+                                '-d', dest_path,
+                                '-w', for_warp_path,
+                                '-x', 'linear',
+                                '-o', in_ones_reg])
+
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+
+        
+        if not os.path.exists(mask_path):
+            # Multiply with one reg to extract the shared fov between the 2 images
+            out=subprocess.run(['sct_maths',
+                                    '-i', dest_ones,
+                                    '-mul', in_ones_reg,
+                                    '-o', mask_path])
+            
+            if out.returncode != 0:
+                return (1, " ".join(out.args)), '', ''
+        
+        # Set pixels out of this mask to zero
+        out=subprocess.run(['sct_maths',
+                                '-i', in_reg_path,
+                                '-mul', mask_path,
+                                '-o', in_reg_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+        
+        out=subprocess.run(['sct_maths',
+                                '-i', dest_path,
+                                '-mul', mask_path,
+                                '-o', dest_crop_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+        
+        # Crop registered contrast
+        out=subprocess.run(['sct_crop_image',
+                                '-i', in_reg_path,
+                                '-m', mask_path,
+                                '-o', input_crop_path])
+        
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+
+        # Crop dest contrast
+        out=subprocess.run(['sct_crop_image',
+                                '-i', dest_crop_path,
+                                '-m', mask_path,
+                                '-o', dest_crop_path])
+
+        if out.returncode != 0:
+            return (1, " ".join(out.args)), '', ''
+
+    return (0, ''), input_crop_path, dest_crop_path
 
 ##
 def load_nifti(path_im, dim='3D', orientation='RSP'):
@@ -288,3 +423,60 @@ def tmp_create(basename):
 ##
 def tuple2string(t):
     return str(t).replace(' ', '').replace('(','').replace(')','').replace(',','-')
+
+##
+def qc_reg_rgb(image_name, image, target, qc_path):
+    '''
+    QC registration between image and target
+    '''
+    image = normalize(image.astype(np.float32))
+    target = normalize(target.astype(np.float32))
+
+    nx, ny, nz = image.shape
+
+    out_sag = np.zeros([s*2 for s in (ny, nz)]+[3])
+    out_sag[::2,1::2,0]=out_sag[1::2,::2,0]=image[nx//2,:,:]
+    out_sag[::2,1::2,1]=out_sag[1::2,::2,1]=image[nx//2,:,:]
+    out_sag[::2,::2,2]=out_sag[1::2,1::2,2]=target[nx//2,:,:]
+    out_sag[::2,::2,1]=out_sag[1::2,1::2,1]=target[nx//2,:,:]
+    qc_sag_path = os.path.join(qc_path, 'sag')
+    if not os.path.exists(qc_sag_path):
+        os.makedirs(qc_sag_path)
+    cv2.imwrite(os.path.join(qc_sag_path, image_name.replace('.nii.gz', '.png')), out_sag*255)
+    
+    out_ax = np.zeros([s*2 for s in (nx,nz)]+[3])
+    out_ax[::2,1::2,0]=out_ax[1::2,::2,0]=image[:,ny//2,:]
+    out_ax[::2,1::2,1]=out_ax[1::2,::2,1]=image[:,ny//2,:]
+    out_ax[::2,::2,2]=out_ax[1::2,1::2,2]=target[:,ny//2,:]
+    out_ax[::2,::2,1]=out_ax[1::2,1::2,1]=target[:,ny//2,:]
+    qc_ax_path = os.path.join(qc_path, 'ax')
+    if not os.path.exists(qc_ax_path):
+        os.makedirs(qc_ax_path)
+    cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
+
+def qc_side_by_side(image_name, image, target, qc_path):
+    '''
+    QC registration between image and target
+    '''
+    image = normalize(image.astype(np.float32))
+    target = normalize(target.astype(np.float32))
+
+    nx, ny, nz = image.shape
+
+    out_sag = np.zeros([ny, 2*nz])
+    out_sag[:,:nz]= image[nx//2,:,:]
+    out_sag[:,nz:]= target[nx//2,:,:]
+
+    qc_sag_path = os.path.join(qc_path, 'sag')
+    if not os.path.exists(qc_sag_path):
+        os.makedirs(qc_sag_path)
+    cv2.imwrite(os.path.join(qc_sag_path, image_name.replace('.nii.gz', '.png')), out_sag*255)
+    
+    out_ax = np.zeros([nx, 2*nz])
+    out_ax[:,:nz]= image[:,ny//2,:]
+    out_ax[:,nz:]= target[:,ny//2,:]
+
+    qc_ax_path = os.path.join(qc_path, 'ax')
+    if not os.path.exists(qc_ax_path):
+        os.makedirs(qc_ax_path)
+    cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)

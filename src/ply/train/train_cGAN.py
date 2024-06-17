@@ -24,17 +24,19 @@ from monai.transforms import (
     Spacingd,
     Compose,
     ResizeWithPadOrCropd,
+    CenterScaleCropd,
     RandFlipd,
-    NormalizeIntensityd
+    NormalizeIntensityd,
+    GaussianSmoothd
 )
 
-from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize
+from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_reg_rgb, qc_side_by_side
 from ply.utils.config2parser import parser2config
 from ply.train.utils import adjust_learning_rate
 from ply.models.discriminator import Discriminator
 from ply.models.criterion import CriterionCGAN
 from ply.models.transform import RandLabelToContourd
-from ply.utils.load_config import fetch_and_preproc_config_cGAN
+from ply.utils.load_config import fetch_image_config_cGAN, fetch_and_register_config_cGAN
 from ply.utils.plot import get_validation_image
 
 
@@ -49,14 +51,16 @@ def get_parser():
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([(i+1)*0.1 for i in range(9)]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Number of epochs during which the discriminator model will not learn (default=0).')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 256, 192), help='Training crop size in RSP orientation(default=(64, 256, 192)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 320, 320), help='Training crop size in RSP orientation(default=(96, 320, 320)).')
+    parser.add_argument('--scale-crop', type=tuple_type_float, default=(1, 1, 1), help='Scale crop applied before padding (default=(1, 1, 1)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256), help='Channels if attunet selected (default=16,32,64,128,256)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
-    parser.add_argument('--laplace-prob', type=float, default=1, help='Probability to apply laplacian kernel to input for training. (default=1).')
+    parser.add_argument('--filter', type=str, default='Laplace', help='Filter used with the input data (default=Laplace).')
+    parser.add_argument('--filter-prob', type=float, default=1, help='Probability to apply kernel to input for training (Laplace or Scharr). (default=1).')
     parser.add_argument('--interp-mode', type=str, default='spline', choices=['bilinear', 'nearest','spline'], help='Interpolation mode for input and output image. (default="spline").')
     parser.add_argument('--alpha', type=int, default=100, help='L1 loss multiplier (default=100).')
-    parser.add_argument('--g-lr', default=2.5e-4, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-4)')
-    parser.add_argument('--d-lr', default=2.5e-5, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-5)')
+    parser.add_argument('--g-lr', default=2.5e-2, type=float, metavar='LR', help='Initial learning rate of the generator (default=2.5e-2)')
+    parser.add_argument('--d-lr', default=2.5e-3, type=float, metavar='LR', help='Initial learning rate of the discriminator (default=2.5e-3)')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3D-CGAN'), help='Folder where the cGAN weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DGAN")')
     parser.add_argument('--start-gen-weights', type=str, default='', help='Path to the generator weights used to start the training.')
     parser.add_argument('--start-disc-weights', type=str, default='', help='Path to the discriminator weights used to start the training.')
@@ -91,13 +95,14 @@ def main():
     weight_folder = args.weight_folder
     in_contrast = config_data['CONTRASTS'].replace('_T2w','').replace('T2w_','')
     out_contrast = 'T2w'
+    input_filter = args.filter
 
     if len(out_contrast.split('_'))>1:
         raise ValueError(f'Multiple output contrast detected, check data config["CONTRAST"]={out_contrast}')
     
     # Save training config
     model = args.model if args.model != 'attunet' else f'{args.model}{str(args.channels[-1])}'
-    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
+    json_name = f'config_cGAN_{model}_{in_contrast}2{out_contrast}_{input_filter}_{str(args.filter_prob)}_pixdimRSP_{tuple2string(args.pixdim)}_cropRSP_{tuple2string(args.crop_size)}_scaleCrop_{tuple2string(args.scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.json'
     saved_args = copy.copy(args)
     parser2config(saved_args, path_out=os.path.join(weight_folder, json_name))  # Create json file with training parameters
 
@@ -107,91 +112,143 @@ def main():
     
     # Load images for training and validation
     print('loading images...')
-    train_list, err_train = fetch_and_preproc_config_cGAN(
+    train_list, err_train = fetch_image_config_cGAN(
                                             config_data=config_data,
-                                            split='TRAINING'
+                                            split='TRAINING',
+                                            qc=False
                                             )
     
-    val_list, err_val = fetch_and_preproc_config_cGAN(
+    val_list, err_val = fetch_image_config_cGAN(
                                             config_data=config_data,
-                                            split='VALIDATION'
+                                            split='VALIDATION',
+                                            qc=False
                                             )
     
     # Define transforms
     # Max with pixdim=(1, 1, 1)
-    # R max =  51
-    # S max =  234
-    # P max =  156
-    # Max with pixdim=(0.8, 0.8, 0.8)
-    # R max = 64
-    # S max = 292
-    # P max = 195
+    # R max =  ~280
+    # S max =  282
+    # P max =  282
+    # Max with pixdim=(0.7, 0.7, 0.7)
+    # R max =  ~400
+    # S max =  403
+    # P max =  403
     if args.interp_mode != 'spline':
         interp_mode = args.interp_mode
     else:
         interp_mode = 2
     crop_size = args.crop_size # RSP
     pixdim = args.pixdim
-    train_transforms = Compose(
-        [
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=pixdim,
-                mode=(interp_mode, interp_mode),
-            ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[0],
-                prob=0.10,
-            ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[1],
-                prob=0.10,
-            ),
-            RandFlipd(
-                keys=["image", "label"],
-                spatial_axis=[2],
-                prob=0.10,
-            ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
-            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
-        ]
-    )
-    val_transforms = Compose(
-        [
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),
-            Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
-            Spacingd(
-                keys=["image", "label"],
-                pixdim=pixdim,
-                mode=(interp_mode, interp_mode),
-            ),
-            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
-            RandLabelToContourd(keys=["image"], kernel_type='Laplace', prob=args.laplace_prob),
-            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
-            NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
-        ]
-    )
+    scale_crop = args.scale_crop
+    
+    # Train or not with pixdim
+    if pixdim != (0,0,0):
+        train_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=pixdim,
+                    mode=(interp_mode, interp_mode),
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[0],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=0.10,
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                GaussianSmoothd(keys=["image"], sigma=0.2),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+        val_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                Spacingd(
+                    keys=["image", "label"],
+                    pixdim=pixdim,
+                    mode=(interp_mode, interp_mode),
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                GaussianSmoothd(keys=["image"], sigma=0.2),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+    else:
+        train_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[0],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[1],
+                    prob=0.10,
+                ),
+                RandFlipd(
+                    keys=["image", "label"],
+                    spatial_axis=[2],
+                    prob=0.10,
+                ),
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                GaussianSmoothd(keys=["image"], sigma=0.2),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
+        val_transforms = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
+                Orientationd(keys=["image", "label"], axcodes="LIA"), # RSP --> LIA
+                CenterScaleCropd(keys=["image", "label"], roi_scale=scale_crop,),
+                ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size,),
+                GaussianSmoothd(keys=["image"], sigma=0.2),
+                RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=args.filter_prob),
+                NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+                NormalizeIntensityd(keys=["label"], nonzero=False, channel_wise=False),
+            ]
+        )
 
     # Define train and val dataset
     train_ds = CacheDataset(
                             data=train_list,
                             transform=train_transforms,
                             cache_rate=0.25,
-                            num_workers=4,
+                            num_workers=5,
                             )
     val_ds = CacheDataset(
                         data=val_list,
                         transform=val_transforms,
                         cache_rate=0.25,
-                        num_workers=4,
+                        num_workers=5,
                         )
 
     # Define train and val DataLoader
@@ -199,18 +256,18 @@ def main():
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=4, 
-                            pin_memory=True, 
-                            persistent_workers=True
+                            num_workers=5, 
+                            pin_memory=False, 
+                            persistent_workers=False
                             ) 
     
     val_loader = DataLoader(
                         val_ds, 
                         batch_size=args.batch_size, 
                         shuffle=False, 
-                        num_workers=4, 
-                        pin_memory=True, 
-                        persistent_workers=True
+                        num_workers=5, 
+                        pin_memory=False, 
+                        persistent_workers=False
                         )
 
     # Create generator model
@@ -267,7 +324,7 @@ def main():
         discriminator.load_state_dict(torch.load(args.start_disc_weights, map_location=torch.device(device))["discriminator_weights"])
 
     # Path to the saved weights       
-    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_laplace_{str(args.laplace_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
+    gen_weights_path = f'{weight_folder}/gen_{model}_{in_contrast}2{out_contrast}_{input_filter}_{str(args.filter_prob)}_alpha_{args.alpha}_pixdimRSP_{tuple2string(pixdim)}_cropRSP_{tuple2string(crop_size)}_scaleCrop_{tuple2string(scale_crop)}_gLR_{str(args.g_lr)}_dLR_{str(args.d_lr)}_gamma_{str(args.gamma)}_interp_{args.interp_mode}.pth'
     disc_weights_path = gen_weights_path.replace('gen', 'disc')
 
     # Init criterion
@@ -408,6 +465,8 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
         # Load input and target
         x, y = (batch["image"].to(device), batch["label"].to(device))
 
+        #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
+        #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
         with torch.cuda.amp.autocast():
             # Get output from generator
             y_fake = generator(x)

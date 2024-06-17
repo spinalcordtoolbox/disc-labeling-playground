@@ -1,9 +1,15 @@
 import os
 from progress.bar import Bar
+import cv2
+import numpy as np
+from skimage.metrics import structural_similarity
+import shutil
 
 from ply.data_management.utils import get_img_path_from_label_path, get_cont_path_from_other_cont, fetch_subject_and_session
-from ply.utils.utils import img2label, apply_preprocessing, registerNcrop
+from ply.utils.utils import img2label, apply_preprocessing, registerNcrop, registerNoSC, normalize
 from ply.utils.plot import plot_discs_distribution
+from ply.utils.image import Image
+from ply.utils.plot import save_violin
 
 ## Functions
 def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='TRAINING'):
@@ -89,7 +95,7 @@ def fetch_array_from_config_classifier(config_data, fov=None, dim='3D', split='T
 
 
 ##
-def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
+def fetch_and_register_config_cGAN(config_data, split='TRAINING', qc=True):
     '''
     :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
     :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
@@ -99,6 +105,9 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
             {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/data/chest_31_label.nii.gz'}
         ]
     '''
+    # Plot lists
+    if qc:
+        R, S, P, pR, pS, pP = [], [], [], [], [], []
 
     # Check config type to ensure that labels paths are specified and not images
     if config_data['TYPE'] != 'CONTRAST':
@@ -114,24 +123,119 @@ def fetch_and_preproc_config_cGAN(config_data, split='TRAINING'):
     out_decathlon_monai = []
     for di in dict_list:
         input_img_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_IMAGE'])
-        input_sc_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_LABEL'])
         target_img_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_IMAGE'])
-        target_sc_path = os.path.join(config_data['DATASETS_PATH'], di['TARGET_LABEL'])
-        if not os.path.exists(input_img_path) or not os.path.exists(target_img_path) or not os.path.exists(input_sc_path) or not os.path.exists(target_sc_path):
-            #raise ValueError(f'Error while loading subject\n {input_img_path}, {target_img_path}, {input_sc_path} or {target_sc_path} might not exist')
-            err.append([input_sc_path, 'path error'])
+        derivatives_path = os.path.join(config_data['DATASETS_PATH'], di['INPUT_IMAGE'].split('/')[0], 'derivatives/regNcrop_NoSC')
+        if not os.path.exists(input_img_path) or not os.path.exists(target_img_path):
+            err.append([input_img_path, 'path error'])
         else:
-            # Register and crop contrasts using the SC segmentation
-            derivatives_path = os.path.join(input_sc_path.split('derivatives')[0], 'derivatives/regNcrop_InputT2w')
-            errcode, target_path, img_path = registerNcrop(in_path=target_img_path, dest_path=input_img_path, in_sc_path=target_sc_path, dest_sc_path=input_sc_path, derivatives_folder=derivatives_path)
-            if errcode[0] != 0:
-                err.append([input_sc_path, errcode[1]])
-            # Output paths using MONAI load_decathlon_datalist format
-            else:
-                out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
+            # Register
+            errcode, target_path, img_path = registerNoSC(in_path=target_img_path, dest_path=input_img_path, derivatives_folder=derivatives_path)
+        if errcode[0] != 0:
+            err.append([input_img_path, errcode[1]])
+        # Output paths using MONAI load_decathlon_datalist format
+        else:
+            if qc:
+                img = Image(img_path).change_orientation('RSP')
+                target = Image(target_path).change_orientation('RSP')
+
+                img.data = normalize(img.data.astype(np.float32))
+                target.data = normalize(target.data.astype(np.float32))
+
+                nx, ny, nz, nt, px, py, pz, pt = img.dim
+
+                test = np.zeros([s*2 for s in img.data.shape[1:]]+[3])
+                test[::2,1::2,0]=test[1::2,::2,0]=img.data[nx//2,:,:]
+                test[::2,1::2,1]=test[1::2,::2,1]=img.data[nx//2,:,:]
+                test[::2,::2,2]=test[1::2,1::2,2]=target.data[nx//2,:,:]
+                test[::2,::2,1]=test[1::2,1::2,1]=target.data[nx//2,:,:]
+                qc_sag_path = os.path.join(derivatives_path,'qc', 'sag')
+                if not os.path.exists(qc_sag_path):
+                    os.makedirs(qc_sag_path)
+                cv2.imwrite(os.path.join(qc_sag_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
+                
+                test = np.zeros([s*2 for s in (img.data.shape[0],img.data.shape[-1])]+[3])
+                test[::2,1::2,0]=test[1::2,::2,0]=img.data[:,ny//2,:]
+                test[::2,1::2,1]=test[1::2,::2,1]=img.data[:,ny//2,:]
+                test[::2,::2,2]=test[1::2,1::2,2]=target.data[:,ny//2,:]
+                test[::2,::2,1]=test[1::2,1::2,1]=target.data[:,ny//2,:]
+                qc_ax_path = os.path.join(derivatives_path,'qc', 'ax')
+                if not os.path.exists(qc_ax_path):
+                    os.makedirs(qc_ax_path)
+                cv2.imwrite(os.path.join(qc_ax_path, os.path.basename(img_path.replace('.nii.gz', '.png'))), test*255)
+
+                R.append(nx)
+                S.append(ny)
+                P.append(nz)
+                pR.append(px)
+                pS.append(py)
+                pP.append(pz)
+            out_decathlon_monai.append({'image':os.path.abspath(img_path), 'label':os.path.abspath(target_path)})
+            # Add output if training set
+            # if split == 'TRAINING':
+            #     out_decathlon_monai.append({'image':os.path.abspath(target_path), 'label':os.path.abspath(target_path)})
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
         bar.next()
     bar.finish()
+    if qc:
+        # Save plot
+        save_violin([R,S,P], 'size.png', x_names=['R-L','S-I','P-A'], x_axis='Axis', y_axis='Size (pixel)')
+        save_violin([pR,pS,pP], 'res.png', x_names=['R-L','S-I','P-A'], x_axis='Axis', y_axis='Resolution (mm/pixel)')
+    return out_decathlon_monai, err
+
+
+def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False):
+    '''
+    :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
+    :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
+    :return: out_decathlon_monai: list of dictionary with image and label paths (like monai load_decathlon_datalist)
+        [
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': '/workspace/data/chest_19_label.nii.gz'},
+            {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/data/chest_31_label.nii.gz'}
+        ]
+    '''
+    # Plot lists
+    if qc:
+        R, S, P, pR, pS, pP = [], [], [], [], [], []
+
+    # Check config type to ensure that labels paths are specified and not images
+    if config_data['TYPE'] != 'IMAGE':
+        raise ValueError('TYPE error: Type IMAGE not detected')
+    
+    # Get file paths based on split
+    dict_list = config_data[split]
+    
+    # Init progression bar
+    bar = Bar(f'Load {split} data with pre-processing', max=len(dict_list))
+    
+    err = []
+    out_decathlon_monai = []
+    for di in dict_list:
+        input_img_path = os.path.join(config_data['DATASETS_PATH'], di['IMAGE'])
+        if not os.path.exists(input_img_path):
+            err.append([input_img_path, 'path error'])
+        # Output paths using MONAI load_decathlon_datalist forma
+        if qc:
+            img = Image(input_img_path).change_orientation('RSP')
+            nx, ny, nz, nt, px, py, pz, pt = img.dim
+            R.append(nx)
+            S.append(ny)
+            P.append(nz)
+            pR.append(px)
+            pS.append(py)
+            pP.append(pz)
+        if split != 'TESTING':
+            out_decathlon_monai.append({'image':os.path.abspath(input_img_path), 'label':os.path.abspath(input_img_path)})
+        else:
+            out_decathlon_monai.append({'image':os.path.abspath(input_img_path)})
+        
+        # Plot progress
+        bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
+        bar.next()
+    bar.finish()
+    if qc:
+        # Save plot
+        save_violin([R,S,P], 'size.png', x_names=['R-L','S-I','P-A'], x_axis='axis', y_axis='size (pixel)')
+        save_violin([pR,pS,pP], 'res.png', x_names=['R-L','S-I','P-A'], x_axis='axis', y_axis='resolution (mm/pixel)')
     return out_decathlon_monai, err

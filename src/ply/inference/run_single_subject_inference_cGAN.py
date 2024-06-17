@@ -1,20 +1,23 @@
-import logging
+"""
+This Python script applies a T2-weighted (T2w) contrast transformation to the input image and then saves the output image using the flag --path-out.
+
+Author: Nathan Molinier
+"""
+
 import os
 import sys
 import shutil
 import numpy as np
-import pandas as pd
 import argparse
 import random
 import json
-import wandb
-import copy
 from tqdm import tqdm
 
 import torch
 import torch.optim as optim
 
 import monai
+from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, CacheDataset, Dataset, decollate_batch
 from monai.networks.nets import UNet, AttentionUnet
 from monai.transforms import (
@@ -27,22 +30,23 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     LabelToContourd,
     Invertd,
-    EnsureTyped
+    EnsureTyped,
+    CenterScaleCropd,
+    GaussianSmoothd
 )
 
-from ply.data_management.utils import fetch_subject_and_session
-from ply.utils.load_image import fetch_and_preproc_image_cGAN
+from ply.utils.load_image import fetch_and_preproc_image_cGAN_NoSeg
 from ply.utils.image import Image, zeros_like
 from ply.utils.utils import tmp_create
+from ply.models.transform import RandLabelToContourd
 
 
 def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Run cGAN inference on a single subject')
     parser.add_argument('--path-in', type=str, required=True, help='Path to the input image (Required)')
-    parser.add_argument('--path-seg', type=str, required=True, help='Path to the input spinal cord segmentation (Required)')
     parser.add_argument('--path-out', type=str, default='', help='Output path after inference: (Default= --path-in folder)')
-    parser.add_argument('--weight-path', type=str, required=True, help='Path to the network weights. (Required')
+    parser.add_argument('--weight-path', type=str, required=True, help='Path to the network weights. (Required)')
     return parser
 
 
@@ -51,7 +55,7 @@ def main():
     args = parser.parse_args()
 
     # Use cuda
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")#"cuda" if torch.cuda.is_available() else "cpu")
 
     ## Set seed
     seed = 42
@@ -67,7 +71,6 @@ def main():
     
     # Load variables
     path_in = os.path.abspath(args.path_in)
-    path_seg = os.path.abspath(args.path_seg)
     path_out = path_in.replace('.nii.gz','')+'_desc-crop_fakeT2w.nii.gz' if not args.path_out else args.path_out
     weight_path = os.path.abspath(args.weight_path)
 
@@ -82,11 +85,23 @@ def main():
     print('-'*40)
     print('Loading image with preprocessing')
     print('-'*40)
-    img_list = fetch_and_preproc_image_cGAN(path_in=path_in, path_seg=path_seg, tmpdir=tmpdir)
+    img_list = fetch_and_preproc_image_cGAN_NoSeg(path_in=path_in, tmpdir=tmpdir)
 
     # Define test transforms
     crop_size = tuple(map(int, args.weight_path.split('cropRSP_')[-1].split('_')[0].split('-'))) # RSP
     pixdim=tuple(map(float, args.weight_path.split('pixdimRSP_')[-1].split('_')[0].split('-')))
+    if 'scaleCrop_' in  args.weight_path:
+        scale_crop=tuple(map(float, args.weight_path.split('scaleCrop_')[-1].split('_')[0].split('-')))
+    else:
+        scale_crop = (1,1,1)
+
+    if "Laplace" in args.weight_path:
+        input_filter = "Laplace"
+        GausSigma = 0
+    else:
+        input_filter = "Scharr"
+        GausSigma = 0.2
+
     test_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
@@ -95,10 +110,12 @@ def main():
             Spacingd(
                 keys=["image"],
                 pixdim=pixdim,
-                mode=("bilinear"),
+                mode=2, # spline interpolation
             ),
+            CenterScaleCropd(keys=["image"], roi_scale=scale_crop,),
             ResizeWithPadOrCropd(keys=["image"], spatial_size=crop_size,),
-            LabelToContourd(keys=["image"], kernel_type='Laplace'),
+            GaussianSmoothd(keys=["image"], sigma=GausSigma),
+            RandLabelToContourd(keys=["image"], kernel_type=input_filter, prob=1),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
         ]
     )
@@ -150,8 +167,14 @@ def main():
         # Load input
         x = batch["image"].to(device)
 
-        # Get output from generator
+        # Use sliding_window_inference from MONAI to deal with bigger images
         y_fake = generator(x)
+        # y_fake = sliding_window_inference(x,
+        #                                   crop_size, 
+        #                                   sw_batch_size=3, 
+        #                                   predictor=generator, 
+        #                                   overlap=0.1, 
+        #                                   progress=False)
 
         # Transform output to its original shape/resolution
         batch["pred"] = y_fake.data.cpu()

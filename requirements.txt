@@ -8,3 +8,4 @@ matplotlib
 argparse
 tqdm
 seaborn
+opencv-python
