@@ -117,3 +117,39 @@ def get_validation_image(in_img, target_img, pred_img):
     img_result = np.concatenate((in_line_arr, target_line_arr, pred_line_arr), axis=0)
     
     return img_result, target_line_arr, pred_line_arr
+
+
+def get_validation_image_diff_2d(target_img, pred_img):
+    '''
+    Get 2d images for validation + input = target
+    '''
+    target_img = target_img.data.cpu().numpy()
+    pred_img = pred_img.data.cpu().numpy()
+    target_all = []
+    pred_all = []
+    for num_batch in range(target_img.shape[0]):
+        # Load 3D numpy array
+        y = target_img[num_batch, 0]
+        y_pred = pred_img[num_batch, 0]
+        shape = y.shape
+
+        # Extract middle slice
+        y = y[:,:]
+        y_pred = y_pred[:,:]
+
+        # Normalize intensity
+        y = y/np.max(y)*255
+        y_pred = y_pred/np.max(y_pred)*255
+
+        # Regroup batch
+        target_all.append(y)
+        pred_all.append(y_pred)
+    
+    # Regroup batch into 1 array
+    target_line_arr = np.concatenate(np.array(target_all), axis=1)
+    pred_line_arr = np.concatenate(np.array(pred_all), axis=1)
+
+    # Regroup image/target/pred into 1 array
+    img_result = np.concatenate((target_line_arr, pred_line_arr), axis=0)
+    
+    return img_result, target_line_arr, pred_line_arr
