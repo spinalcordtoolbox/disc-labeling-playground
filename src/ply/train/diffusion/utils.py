@@ -240,8 +240,6 @@ def prepare_dataloader(
         [
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),
-            Lambdad(keys="image", func=lambda x: x[channel, :, :, :]),
-            EnsureChannelFirstd(keys=["image"], channel_dim="no_channel"),
             EnsureTyped(keys=["image"]),
             Orientationd(keys=["image"], axcodes="LIA"), # RSP- --> LIA+
             Spacingd(
@@ -262,8 +260,6 @@ def prepare_dataloader(
         [
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),
-            Lambdad(keys="image", func=lambda x: x[channel, :, :, :]),
-            EnsureChannelFirstd(keys=["image"], channel_dim="no_channel"),
             EnsureTyped(keys=["image"]),
             Orientationd(keys=["image"], axcodes="LIA"),
             Spacingd(
