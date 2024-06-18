@@ -33,6 +33,8 @@ from monai.transforms import (
     ScaleIntensityRangePercentilesd,
     SplitDimd,
     SqueezeDimd,
+    NormalizeIntensityd,
+    Spacingd
 )
 
 from ply.utils.load_config import fetch_image_config_cGAN
@@ -241,12 +243,17 @@ def prepare_dataloader(
             Lambdad(keys="image", func=lambda x: x[channel, :, :, :]),
             EnsureChannelFirstd(keys=["image"], channel_dim="no_channel"),
             EnsureTyped(keys=["image"]),
-            Orientationd(keys=["image"], axcodes="RAS"),
+            Spacingd(
+                    keys=["image"],
+                    pixdim=(6,1,1),
+                    mode=2, # spline interpolation
+                ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
             DivisiblePadd(keys=["image"], k=size_divisible_3d),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=100.0, b_min=-1, b_max=1),
             train_crop_transform,
             SqueezeDimd(keys="image", dim=1 + sample_axis),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
     )
@@ -257,11 +264,16 @@ def prepare_dataloader(
             Lambdad(keys="image", func=lambda x: x[channel, :, :, :]),
             EnsureChannelFirstd(keys=["image"], channel_dim="no_channel"),
             EnsureTyped(keys=["image"]),
-            Orientationd(keys=["image"], axcodes="RAS"),
+            Spacingd(
+                    keys=["image"],
+                    pixdim=(6,1,1),
+                    mode=2, # spline interpolation
+                ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
             DivisiblePadd(keys=["image"], k=size_divisible_3d),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=100.0, b_min=-1, b_max=1),
             SplitDimd(keys=["image"], dim=1 + sample_axis, keepdim=False, list_output=True),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
     )
