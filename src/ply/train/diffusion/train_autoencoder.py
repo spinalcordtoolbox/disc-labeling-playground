@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 import wandb
 import numpy as np
+from tqdm import tqdm
 
 import torch
 from generative.losses import PatchAdversarialLoss, PerceptualLoss
@@ -198,7 +199,8 @@ def main():
         recons_loss_list=[]
         kl_loss_list=[]
         p_loss_list=[]
-        for step, batch in enumerate(train_loader):
+        train_iterator = tqdm(train_loader, desc="Training (G_loss=X.X) (D_loss=X.X)", dynamic_ncols=True)
+        for step, batch in enumerate(train_iterator):
             images = batch["image"].to(device)
 
             # train Generator part
@@ -239,17 +241,26 @@ def main():
             kl_loss_list.append(kl_loss.mean().item())
             p_loss_list.append(p_loss.mean().item())
 
+            if epoch > autoencoder_warm_up_n_epochs:
+                train_iterator.set_description(
+                    "Training (G_loss=%2.5f) (D_loss=%2.5f)" % (loss_g.mean().item(), loss_d.mean().item())
+                )
+            else:
+                train_iterator.set_description(
+                    "Training (G_loss=%2.5f) (D_loss=X.X)" % (loss_g.mean().item())
+                )
+
         # write train loss for each batch
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         if rank == 0:
-            wandb.log({"train_recon_loss_iter/epoch": np.mean(recons_loss_list)})
-            wandb.log({"train_kl_loss_iter/epoch": np.mean(kl_loss_list)})
-            wandb.log({"train_perceptual_loss_iter/epoch": np.mean(p_loss_list)})
+            wandb.log({"train_recon_loss/epoch": np.mean(recons_loss_list)})
+            wandb.log({"train_kl_loss/epoch": np.mean(kl_loss_list)})
+            wandb.log({"train_perceptual_loss/epoch": np.mean(p_loss_list)})
 
             if epoch > autoencoder_warm_up_n_epochs:
-                wandb.log({"train_adv_loss_iter/epoch": np.mean(generator_loss_list)})
-                wandb.log({"train_fake_loss_iter/epoch": np.mean(loss_d_fake_list)})
-                wandb.log({"train_real_loss_iter/epoch": np.mean(loss_d_real_list)})
+                wandb.log({"train_adv_loss/epoch": np.mean(generator_loss_list)})
+                wandb.log({"train_fake_loss/epoch": np.mean(loss_d_fake_list)})
+                wandb.log({"train_real_loss/epoch": np.mean(loss_d_real_list)})
 
         # validation
         if (epoch) % val_interval == 0:
