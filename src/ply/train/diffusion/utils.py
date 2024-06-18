@@ -190,14 +190,14 @@ def prepare_dataloader(
     batch_size,
     patch_size,
     amp=False,
-    sample_axis=2,
+    sample_axis=0,
     randcrop=True,
     rank=0,
     world_size=1,
     cache=1.0,
     download=False,
     size_divisible=4,
-    num_center_slice=80,
+    num_center_slice=5,
 ):
     ddp_bool = world_size > 1
     channel = args.channel  # 0 = Flair, 1 = T1
@@ -206,17 +206,17 @@ def prepare_dataloader(
     if sample_axis == 0:
         # sagittal
         train_patch_size = [1] + patch_size
-        val_patch_size = [num_center_slice] + patch_size
+        val_patch_size = [num_center_slice, -1, -1]
         size_divisible_3d = [1, size_divisible, size_divisible]
     elif sample_axis == 1:
         # coronal
         train_patch_size = [patch_size[0], 1, patch_size[1]]
-        val_patch_size = [patch_size[0], num_center_slice, patch_size[1]]
+        val_patch_size = [-1, num_center_slice, -1]
         size_divisible_3d = [size_divisible, 1, size_divisible]
     elif sample_axis == 2:
         # axial
         train_patch_size = patch_size + [1]
-        val_patch_size = patch_size + [num_center_slice]
+        val_patch_size =  [-1, -1, num_center_slice]
         size_divisible_3d = [size_divisible, size_divisible, 1]
     else:
         raise ValueError("sample_axis has to be in [0,1,2]")
