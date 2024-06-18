@@ -17,6 +17,8 @@ import logging
 import os
 import sys
 from pathlib import Path
+import wandb
+import numpy as np
 
 import torch
 from generative.losses import PatchAdversarialLoss, PerceptualLoss
@@ -25,9 +27,10 @@ from monai.config import print_config
 from monai.utils import set_determinism
 from torch.nn import L1Loss, MSELoss
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
 from utils import KL_loss, define_instance, setup_ddp, prepare_dataloader
 from visualize_image import visualize_2d_image
+
+from ply.utils.plot import get_validation_image_diff_2d
 
 
 def main():
@@ -165,12 +168,13 @@ def main():
     optimizer_g = torch.optim.Adam(params=autoencoder.parameters(), lr=args.autoencoder_train["lr"] * world_size)
     optimizer_d = torch.optim.Adam(params=discriminator.parameters(), lr=args.autoencoder_train["lr"] * world_size)
 
-    # initialize tensorboard writer
-    if rank == 0:
-        Path(args.tfevent_path).mkdir(parents=True, exist_ok=True)
-        tensorboard_path = os.path.join(args.tfevent_path, "autoencoder")
-        Path(tensorboard_path).mkdir(parents=True, exist_ok=True)
-        tensorboard_writer = SummaryWriter(tensorboard_path)
+    # 🐝 Initialize wandb run
+    wandb.init(project=f'diff-autoencoder-fov-generation', config=vars(args))
+    
+    # 🐝 Add training script as an artifact
+    artifact_script = wandb.Artifact(name='training', type='file')
+    artifact_script.add_file(local_path=os.path.abspath(__file__), name=os.path.basename(__file__))
+    wandb.log_artifact(artifact_script)
 
     # Step 4: training
     autoencoder_warm_up_n_epochs = 5
@@ -187,6 +191,13 @@ def main():
             # if ddp, distribute data across n gpus
             train_loader.sampler.set_epoch(epoch)
             val_loader.sampler.set_epoch(epoch)
+        
+        generator_loss_list=[]
+        loss_d_fake_list=[]
+        loss_d_real_list=[]
+        recons_loss_list=[]
+        kl_loss_list=[]
+        p_loss_list=[]
         for step, batch in enumerate(train_loader):
             images = batch["image"].to(device)
 
@@ -220,16 +231,25 @@ def main():
                 loss_d.backward()
                 optimizer_d.step()
 
-            # write train loss for each batch into tensorboard
-            if rank == 0:
-                total_step += 1
-                tensorboard_writer.add_scalar("train_recon_loss_iter", recons_loss, total_step)
-                tensorboard_writer.add_scalar("train_kl_loss_iter", kl_loss, total_step)
-                tensorboard_writer.add_scalar("train_perceptual_loss_iter", p_loss, total_step)
-                if epoch > autoencoder_warm_up_n_epochs:
-                    tensorboard_writer.add_scalar("train_adv_loss_iter", generator_loss, total_step)
-                    tensorboard_writer.add_scalar("train_fake_loss_iter", loss_d_fake, total_step)
-                    tensorboard_writer.add_scalar("train_real_loss_iter", loss_d_real, total_step)
+                generator_loss_list.append(generator_loss.mean().item())
+                loss_d_fake_list.append(loss_d_fake.mean().item())
+                loss_d_real_list.append(loss_d_real.mean().item())
+
+            recons_loss_list.append(recons_loss.mean().item())
+            kl_loss_list.append(kl_loss.mean().item())
+            p_loss_list.append(p_loss.mean().item())
+
+        # write train loss for each batch
+        # 🐝 Plot G_loss D_loss and discriminator accuracy
+        if rank == 0:
+            wandb.log({"train_recon_loss_iter/epoch": np.mean(recons_loss_list)})
+            wandb.log({"train_kl_loss_iter/epoch": np.mean(kl_loss_list)})
+            wandb.log({"train_perceptual_loss_iter/epoch": np.mean(p_loss_list)})
+
+            if epoch > autoencoder_warm_up_n_epochs:
+                wandb.log({"train_adv_loss_iter/epoch": np.mean(generator_loss_list)})
+                wandb.log({"train_fake_loss_iter/epoch": np.mean(loss_d_fake_list)})
+                wandb.log({"train_real_loss_iter/epoch": np.mean(loss_d_real_list)})
 
         # validation
         if (epoch) % val_interval == 0:
@@ -268,18 +288,14 @@ def main():
                     print("Save trained autoencoder to", trained_g_path)
                     print("Save trained discriminator to", trained_d_path)
 
-                # write val loss for each epoch into tensorboard
-                tensorboard_writer.add_scalar("val_recon_loss", val_recon_epoch_loss, epoch)
-                tensorboard_writer.add_image(
-                    "val_img",
-                    visualize_2d_image(images[50, 0, ...]).transpose([2, 1, 0]),
-                    epoch,
-                )
-                tensorboard_writer.add_image(
-                    "val_recon",
-                    visualize_2d_image(reconstruction[50, 0, ...]).transpose([2, 1, 0]),
-                    epoch,
-                )
+                # write val loss for each epoch
+                # 🐝 Plot G_loss D_loss and discriminator accuracy
+                wandb.log({"val_recon_loss/epoch": val_recon_epoch_loss})
+
+                res_img, target_img, pred_img = get_validation_image_diff_2d(images, reconstruction)
+                wandb.log({"val_img/last_batch": wandb.Image(res_img, caption=f'res_{epoch}')})
+                wandb.log({"val_img/groud_truth": wandb.Image(target_img, caption=f'ground_truth_{epoch}')})
+                wandb.log({"val_img/prediction": wandb.Image(pred_img, caption=f'prediction_{epoch}')})
 
 
 if __name__ == "__main__":
