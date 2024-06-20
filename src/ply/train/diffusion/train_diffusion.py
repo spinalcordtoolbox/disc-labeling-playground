@@ -24,9 +24,7 @@ from monai.config import print_config
 from monai.utils import first, set_determinism
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
-from utils import define_instance, prepare_brats2d_dataloader, setup_ddp
-from visualize_image import visualize_2d_image
+from utils import define_instance, prepare_dataloader, setup_ddp
 
 
 def main():
@@ -76,7 +74,7 @@ def main():
 
     # Step 1: set data loader
     size_divisible = 2 ** (len(args.autoencoder_def["num_channels"]) + len(args.diffusion_def["num_channels"]) - 2)
-    train_loader, val_loader = prepare_brats2d_dataloader(
+    train_loader, val_loader = prepare_dataloader(
         args,
         args.diffusion_train["batch_size"],
         args.diffusion_train["patch_size"],
