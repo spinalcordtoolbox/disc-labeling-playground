@@ -496,7 +496,7 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
             D_fake_loss = disc_loss(D_fake, torch.zeros_like(D_fake))
             D_loss = (D_real_loss + D_fake_loss) / 2
 
-        if not warmup or train_disc:
+        if not warmup and train_disc:
             discriminator.zero_grad()
             d_scaler.scale(D_loss).backward()
             d_scaler.step(optimizerD)
