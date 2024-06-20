@@ -517,7 +517,10 @@ def train(data_loader, generator, discriminator, disc_loss, feature_loss, optimi
                 f_loss = feature_loss(y_fake, y)
             else:
                 f_loss = feature_loss(y_fake, y, y_mu, y_sigma)
-            G_loss = G_fake_loss + f_loss
+            if not warmup:
+                G_loss = G_fake_loss + f_loss
+            else:
+                G_loss = f_loss
 
         generator.zero_grad()
         g_scaler.scale(G_loss).backward()
