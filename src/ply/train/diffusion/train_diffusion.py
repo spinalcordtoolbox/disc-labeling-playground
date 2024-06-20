@@ -1,3 +1,5 @@
+# Script based on https://github.com/Project-MONAI/tutorials/blob/main/generative/2d_ldm/train_diffusion.py
+
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +17,8 @@ import logging
 import os
 import sys
 from pathlib import Path
+from tqdm import tqdm
+import numpy as np
 
 import wandb
 
