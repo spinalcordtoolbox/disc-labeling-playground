@@ -198,6 +198,8 @@ def prepare_dataloader(
     download=False,
     size_divisible=4,
     num_center_slice=5,
+    train_transform='crop',
+    val_transform='full',
 ):
     ddp_bool = world_size > 1
     channel = args.channel  # 0 = Flair, 1 = T1
@@ -236,7 +238,7 @@ def prepare_dataloader(
     else:
         compute_dtype = torch.float32
 
-    train_transforms = Compose(
+    crop_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),
@@ -256,7 +258,7 @@ def prepare_dataloader(
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
     )
-    val_transforms = Compose(
+    full_transforms = Compose(
         [
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),
@@ -299,13 +301,13 @@ def prepare_dataloader(
     # Define train and val dataset
     train_ds = CacheDataset(
                             data=train_list,
-                            transform=train_transforms,
+                            transform=crop_transforms if train_transform == 'crop' else full_transforms,
                             cache_rate=0.5,
                             num_workers=5,
                             )
     val_ds = CacheDataset(
                         data=val_list,
-                        transform=val_transforms,
+                        transform=full_transforms,
                         cache_rate=0.5,
                         num_workers=5,
                         )

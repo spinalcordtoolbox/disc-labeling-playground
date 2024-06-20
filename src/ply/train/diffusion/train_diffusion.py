@@ -93,6 +93,8 @@ def main():
         download=False,
         size_divisible=size_divisible,
         amp=True,
+        train_transform='full',
+        val_transform='full',
     )
 
     # 🐝 Initialize wandb run

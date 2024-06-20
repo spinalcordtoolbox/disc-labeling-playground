@@ -92,6 +92,8 @@ def main():
         cache=1.0,
         download=False,
         size_divisible=size_divisible,
+        train_transform='crop',
+        val_transform='full',
     )
 
     # Step 2: Define Autoencoder KL network and discriminator
