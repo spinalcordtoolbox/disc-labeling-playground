@@ -308,7 +308,7 @@ def main():
                         out_channels=1,
                         latent_size=1,
                         channels=channels,
-                        strides=[2]*(len(channels)-1),
+                        strides=[2]*(len(channels)),
                         kernel_size=3).to(device)
     else:
         raise ValueError(f'Specified model {args.model} is unknown')
