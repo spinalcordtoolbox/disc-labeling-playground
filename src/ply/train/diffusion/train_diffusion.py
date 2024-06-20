@@ -16,6 +16,8 @@ import os
 import sys
 from pathlib import Path
 
+import wandb
+
 import torch
 import torch.nn.functional as F
 from generative.inferers import LatentDiffusionInferer
@@ -26,6 +28,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import define_instance, prepare_dataloader, setup_ddp
 
+from ply.utils.plot import get_validation_image_diff_2d
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
@@ -88,11 +91,13 @@ def main():
         amp=True,
     )
 
-    # initialize tensorboard writer
-    if rank == 0:
-        Path(args.tfevent_path).mkdir(parents=True, exist_ok=True)
-        tensorboard_path = os.path.join(args.tfevent_path, "diffusion")
-        tensorboard_writer = SummaryWriter(tensorboard_path)
+    # 🐝 Initialize wandb run
+    wandb.init(project=f'diffusion-fov-generation', config=vars(args))
+
+    # 🐝 Add training script as an artifact
+    artifact_script = wandb.Artifact(name='training', type='file')
+    artifact_script.add_file(local_path=os.path.abspath(__file__), name=os.path.basename(__file__))
+    wandb.log_artifact(artifact_script)
 
     # Step 2: Define Autoencoder KL network and diffusion model
     # Load Autoencoder KL network
@@ -117,11 +122,6 @@ def main():
             z = autoencoder.encode_stage_2_inputs(check_data["image"].to(device))
             if rank == 0:
                 print(f"Latent feature shape {z.shape}")
-                tensorboard_writer.add_image(
-                    "train_img",
-                    visualize_2d_image(check_data["image"][0, 0, ...]).transpose([2, 1, 0]),
-                    1,
-                )
                 print(f"Scaling factor set to {1/torch.std(z)}")
     scale_factor = 1 / torch.std(z)
     print(f"Rank {rank}: local scale_factor: {scale_factor}")
@@ -181,7 +181,6 @@ def main():
     val_interval = args.diffusion_train["val_interval"]
     autoencoder.eval()
     scaler = GradScaler()
-    total_step = 0
     best_val_recon_epoch_loss = 100.0
 
     for epoch in range(start_epoch, n_epochs):
@@ -190,6 +189,7 @@ def main():
         if ddp_bool:
             train_loader.sampler.set_epoch(epoch)
             val_loader.sampler.set_epoch(epoch)
+        loss_list = []
         train_iterator = tqdm(train_loader, desc="Training (loss=X.X)", dynamic_ncols=True)
         for step, batch in enumerate(train_iterator):
             images = batch["image"].to(device)
@@ -227,9 +227,16 @@ def main():
             scaler.step(optimizer_diff)
             scaler.update()
 
+            # write train loss for each batch
+            loss_list.append(loss.mean().item())
+
             train_iterator.set_description(
                     "Training (loss=%2.5f)" % (loss.mean().item())
                 )
+        
+        # 🐝 Plot train loss
+        if rank == 0:
+            wandb.log({"train_diffusion_loss/epoch": np.mean(loss_list)})
 
         # validation
         if (epoch) % val_interval == 0:
@@ -275,7 +282,8 @@ def main():
 
                     # write val loss and save best model
                     if rank == 0:
-                        tensorboard_writer.add_scalar("val_diffusion_loss", val_recon_epoch_loss, epoch + 1)
+                        # 🐝 Plot val loss
+                        wandb.log({"val_recon_loss/epoch": val_recon_epoch_loss})
                         print(f"Epoch {epoch} val_diffusion_loss: {val_recon_epoch_loss}")
                         # save last model
                         if ddp_bool:
@@ -304,11 +312,9 @@ def main():
                                 diffusion_model=unet,
                                 scheduler=scheduler,
                             )
-                            tensorboard_writer.add_image(
-                                "val_diff_synimg",
-                                visualize_2d_image(synthetic_images[0, 0, ...]).transpose([2, 1, 0]),
-                                epoch,
-                            )
+                            # 🐝 create image for validation
+                            _, _, pred_img = get_validation_image_diff_2d(synthetic_images, synthetic_images)
+                            wandb.log({"val_img/prediction": wandb.Image(pred_img, caption=f'prediction_{epoch}')})
 
 
 if __name__ == "__main__":
