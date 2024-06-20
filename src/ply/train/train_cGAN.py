@@ -16,7 +16,7 @@ import torch.optim as optim
 
 import monai
 from monai.data import DataLoader, CacheDataset
-from monai.networks.nets import UNet, AttentionUnet, SwinUNETR, UNETR
+from monai.networks.nets import UNet, AttentionUnet, SwinUNETR, UNETR, VarAutoEncoder
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -44,7 +44,7 @@ def get_parser():
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Train cGAN')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
-    parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
+    parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr', 'varauto'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr", "varauto"] (default="attunet")')
     parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
@@ -301,6 +301,15 @@ def main():
                         res_block=True,
                         dropout_rate=0.0,
                     ).to(device)
+    elif args.model == 'varauto':
+        generator = VarAutoEncoder(
+                        spatial_dims=3,
+                        in_shape=[1] + list(crop_size),
+                        out_channels=1,
+                        latent_size=1,
+                        channels=channels,
+                        strides=[2]*(len(channels)-1),
+                        kernel_size=3).to(device)
     else:
         raise ValueError(f'Specified model {args.model} is unknown')
 
