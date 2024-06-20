@@ -190,7 +190,8 @@ def main():
         if ddp_bool:
             train_loader.sampler.set_epoch(epoch)
             val_loader.sampler.set_epoch(epoch)
-        for step, batch in enumerate(train_loader):
+        train_iterator = tqdm(train_loader, desc="Training (loss=X.X)", dynamic_ncols=True)
+        for step, batch in enumerate(train_iterator):
             images = batch["image"].to(device)
             optimizer_diff.zero_grad(set_to_none=True)
 
@@ -226,10 +227,9 @@ def main():
             scaler.step(optimizer_diff)
             scaler.update()
 
-            # write train loss for each batch into tensorboard
-            if rank == 0:
-                total_step += 1
-                tensorboard_writer.add_scalar("train_diffusion_loss_iter", loss, total_step)
+            train_iterator.set_description(
+                    "Training (loss=%2.5f)" % (loss.mean().item())
+                )
 
         # validation
         if (epoch) % val_interval == 0:
