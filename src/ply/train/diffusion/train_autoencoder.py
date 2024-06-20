@@ -29,7 +29,6 @@ from monai.utils import set_determinism
 from torch.nn import L1Loss, MSELoss
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import KL_loss, define_instance, setup_ddp, prepare_dataloader
-from visualize_image import visualize_2d_image
 
 from ply.utils.plot import get_validation_image_diff_2d
 
