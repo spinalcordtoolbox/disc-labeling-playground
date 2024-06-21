@@ -12,6 +12,8 @@ def save_bar(names, values, output_path, x_axis, y_axis):
     :param x_axis: x-axis name
     :param y_axis: y-axis name
 
+    command used: 
+    save_bar(names=[str(s) for s in np.unique(S)], values=[list(S).count(s) for s in np.unique(S)], output_path='test.png', x_axis='size (pixel)', y_axis='number')
     '''
             
     # Set position of bar on X axis
