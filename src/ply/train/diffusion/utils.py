@@ -188,7 +188,8 @@ def prepare_brats2d_dataloader(
 def prepare_dataloader(
     args,
     batch_size,
-    patch_size,
+    t_patch_size,
+    v_patch_size,
     amp=False,
     sample_axis=0,
     randcrop=True,
@@ -207,18 +208,18 @@ def prepare_dataloader(
 
     if sample_axis == 0:
         # sagittal
-        train_patch_size = [1] + patch_size
-        val_patch_size = [num_center_slice, -1, -1]
+        train_patch_size = [1] + t_patch_size
+        val_patch_size = [num_center_slice] + v_patch_size
         size_divisible_3d = [1, size_divisible, size_divisible]
     elif sample_axis == 1:
         # coronal
-        train_patch_size = [patch_size[0], 1, patch_size[1]]
-        val_patch_size = [-1, num_center_slice, -1]
+        train_patch_size = [t_patch_size[0], 1, t_patch_size[1]]
+        val_patch_size = [v_patch_size[0], num_center_slice, v_patch_size[1]]
         size_divisible_3d = [size_divisible, 1, size_divisible]
     elif sample_axis == 2:
         # axial
-        train_patch_size = patch_size + [1]
-        val_patch_size =  [-1, -1, num_center_slice]
+        train_patch_size = t_patch_size + [1]
+        val_patch_size =  v_patch_size + [num_center_slice]
         size_divisible_3d = [size_divisible, size_divisible, 1]
     else:
         raise ValueError("sample_axis has to be in [0,1,2]")

@@ -84,7 +84,8 @@ def main():
     train_loader, val_loader = prepare_dataloader(
         args,
         args.diffusion_train["batch_size"],
-        args.diffusion_train["patch_size"],
+        args.diffusion_train["train_patch_size"],
+        args.diffusion_train["val_patch_size"],
         sample_axis=args.sample_axis,
         randcrop=True,
         rank=rank,

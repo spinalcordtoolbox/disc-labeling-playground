@@ -84,7 +84,8 @@ def main():
     train_loader, val_loader = prepare_dataloader(
         args,
         args.autoencoder_train["batch_size"],
-        args.autoencoder_train["patch_size"],
+        args.autoencoder_train["train_patch_size"],
+        args.autoencoder_train["val_patch_size"],
         sample_axis=args.sample_axis,
         randcrop=True,
         rank=rank,
