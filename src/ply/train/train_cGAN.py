@@ -367,9 +367,9 @@ def main():
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
         #if epoch in [int(sch*args.nb_epochs) for sch in args.schedule]:
-        if train_Dacc > 0.95 and epoch > 10:
-            g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=args.gamma)
-            d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=args.gamma)
+        # if train_Dacc > 0.95 and epoch > 10:
+        #     g_lr = adjust_learning_rate(optimizerG, g_lr, gamma=args.gamma)
+        #     d_lr = adjust_learning_rate(optimizerD, d_lr, gamma=args.gamma)
 
         print('\nEpoch: %d | GEN_LR: %.8f | DISC_LR: %.8f' % (epoch + 1, g_lr, d_lr))
 
