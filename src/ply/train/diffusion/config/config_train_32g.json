@@ -10,24 +10,16 @@
         "in_channels": "$@image_channels",
         "out_channels": "@image_channels",
         "latent_channels": "@latent_channels",
-        "num_channels": [
-            64,
-            128,
-            256
-        ],
+        "num_channels": [128, 256, 512, 1024],
         "num_res_blocks": 2,
         "norm_num_groups": 32,
         "norm_eps": 1e-06,
-        "attention_levels": [
-            false,
-            false,
-            false
-        ],
+        "attention_levels": [false, false, false, false],
         "with_encoder_nonlocal_attn": true,
         "with_decoder_nonlocal_attn": true
     },
     "autoencoder_train": {
-        "batch_size": 26,
+        "batch_size": 15,
         "train_patch_size": [240,240],
         "val_patch_size": [768,240],
         "lr": 5e-5,
@@ -42,7 +34,7 @@
         "spatial_dims": "@spatial_dims",
         "in_channels": "@latent_channels",
         "out_channels": "@latent_channels",
-        "num_channels":[32, 64, 128, 256],
+        "num_channels":[128, 256, 512, 1024],
         "attention_levels":[false, true, true, true],
         "num_head_channels":[0, 32, 32, 32],
         "num_res_blocks": 2
