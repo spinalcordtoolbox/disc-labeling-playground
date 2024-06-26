@@ -102,8 +102,8 @@ def main():
     discriminator_norm = "INSTANCE"
     discriminator = PatchDiscriminator(
         spatial_dims=args.spatial_dims,
-        num_layers_d=3,
-        num_channels=32,
+        num_layers_d=len(args.autoencoder_def["num_channels"]),
+        num_channels=args.autoencoder_def["num_channels"][0]//2,
         in_channels=1,
         out_channels=1,
         norm=discriminator_norm,
