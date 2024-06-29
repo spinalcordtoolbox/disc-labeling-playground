@@ -19,7 +19,7 @@
         "with_decoder_nonlocal_attn": true
     },
     "autoencoder_train": {
-        "batch_size": 10,
+        "batch_size": 8,
         "train_patch_size": [256,256],
         "val_patch_size": [768,256],
         "lr": 5e-5,
