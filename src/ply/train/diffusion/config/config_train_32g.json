@@ -10,7 +10,7 @@
         "in_channels": "$@image_channels",
         "out_channels": "@image_channels",
         "latent_channels": "@latent_channels",
-        "num_channels": [128, 256, 512],
+        "num_channels": [256, 512, 1024],
         "num_res_blocks": 2,
         "norm_num_groups": 32,
         "norm_eps": 1e-06,
