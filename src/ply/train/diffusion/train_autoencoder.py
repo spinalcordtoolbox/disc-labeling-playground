@@ -23,12 +23,12 @@ from tqdm import tqdm
 
 import torch
 from generative.losses import PatchAdversarialLoss, PerceptualLoss
-from generative.networks.nets import PatchDiscriminator
+from generative.networks.nets import VQVAE, PatchDiscriminator
 from monai.config import print_config
 from monai.utils import set_determinism
 from torch.nn import L1Loss, MSELoss
 from torch.nn.parallel import DistributedDataParallel as DDP
-from utils import KL_loss, define_instance, setup_ddp, prepare_dataloader
+from utils import define_instance, setup_ddp, prepare_dataloader
 
 from ply.utils.plot import get_validation_image_diff_2d
 
@@ -97,8 +97,17 @@ def main():
         val_transform='full',
     )
 
-    # Step 2: Define Autoencoder KL network and discriminator
-    autoencoder = define_instance(args, "autoencoder_def").to(device)
+    # Step 2: Define VQVAE network and discriminator
+    autoencoder = VQVAE(
+        spatial_dims=2,
+        in_channels=1,
+        out_channels=1,
+        num_channels=args.autoencoder_def["num_channels"],
+        num_res_channels=args.autoencoder_def["num_channels"][-1],
+        num_res_layers=args.autoencoder_def["num_res_blocks"],
+        num_embeddings=args.autoencoder_def["num_channels"][0],
+    ).to(device)
+
     discriminator_norm = "INSTANCE"
     discriminator = PatchDiscriminator(
         spatial_dims=args.spatial_dims,
@@ -112,9 +121,9 @@ def main():
         # When using DDP, BatchNorm needs to be converted to SyncBatchNorm.
         discriminator = torch.nn.SyncBatchNorm.convert_sync_batchnorm(discriminator)
 
-    trained_g_path = os.path.join(args.model_dir, "autoencoder.pt")
+    trained_g_path = os.path.join(args.model_dir, "vqvae.pt")
     trained_d_path = os.path.join(args.model_dir, "discriminator.pt")
-    trained_g_path_last = os.path.join(args.model_dir, "autoencoder_last.pt")
+    trained_g_path_last = os.path.join(args.model_dir, "vqvae_last.pt")
     trained_d_path_last = os.path.join(args.model_dir, "discriminator_last.pt")
 
     if rank == 0:
@@ -163,10 +172,6 @@ def main():
 
     adv_weight = 0.5
     perceptual_weight = args.autoencoder_train["perceptual_weight"]
-    # kl_weight: important hyper-parameter.
-    #     If too large, decoder cannot recon good results from latent space.
-    #     If too small, latent space will not be regularized enough for the diffusion model
-    kl_weight = args.autoencoder_train["kl_weight"]
 
     optimizer_g = torch.optim.Adam(params=autoencoder.parameters(), lr=args.autoencoder_train["lr"] * world_size)
     optimizer_d = torch.optim.Adam(params=discriminator.parameters(), lr=args.autoencoder_train["lr"] * world_size)
@@ -199,7 +204,6 @@ def main():
         loss_d_fake_list=[]
         loss_d_real_list=[]
         recons_loss_list=[]
-        kl_loss_list=[]
         p_loss_list=[]
         train_iterator = tqdm(train_loader, desc="Training (G_loss=X.X) (D_loss=X.X)", dynamic_ncols=True)
         for step, batch in enumerate(train_iterator):
@@ -207,12 +211,11 @@ def main():
 
             # train Generator part
             optimizer_g.zero_grad(set_to_none=True)
-            reconstruction, z_mu, z_sigma = autoencoder(images)
+            reconstruction, quantization_loss = autoencoder(images)
 
             recons_loss = intensity_loss(reconstruction, images)
-            kl_loss = KL_loss(z_mu, z_sigma)
             p_loss = loss_perceptual(reconstruction.float(), images.float())
-            loss_g = recons_loss + kl_weight * kl_loss + perceptual_weight * p_loss
+            loss_g = recons_loss + quantization_loss + perceptual_weight * p_loss
 
             if epoch > autoencoder_warm_up_n_epochs:
                 logits_fake = discriminator(reconstruction.contiguous().float())[-1]
@@ -240,7 +243,6 @@ def main():
                 loss_d_real_list.append(loss_d_real.mean().item())
 
             recons_loss_list.append(recons_loss.mean().item())
-            kl_loss_list.append(kl_loss.mean().item())
             p_loss_list.append(p_loss.mean().item())
 
             if epoch > autoencoder_warm_up_n_epochs:
@@ -256,7 +258,6 @@ def main():
         # 🐝 Plot G_loss D_loss and discriminator accuracy
         if rank == 0:
             wandb.log({"train_recon_loss/epoch": np.mean(recons_loss_list)})
-            wandb.log({"train_kl_loss/epoch": np.mean(kl_loss_list)})
             wandb.log({"train_perceptual_loss/epoch": np.mean(p_loss_list)})
 
             if epoch > autoencoder_warm_up_n_epochs:
