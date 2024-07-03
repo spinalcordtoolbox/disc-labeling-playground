@@ -106,6 +106,7 @@ def main():
         num_res_channels=args.autoencoder_def["num_channels"][-1],
         num_res_layers=args.autoencoder_def["num_res_blocks"],
         num_embeddings=args.autoencoder_def["num_channels"][0],
+        embedding_dim= 64
     ).to(device)
 
     discriminator_norm = "INSTANCE"
