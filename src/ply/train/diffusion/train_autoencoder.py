@@ -272,7 +272,7 @@ def main():
             for step, batch in enumerate(val_loader):
                 images = batch["image"].to(device)
                 with torch.no_grad():
-                    reconstruction, quantization_loss = autoencoder(images)
+                    reconstruction, z_mu, z_sigma = autoencoder(images)
                     recons_loss = intensity_loss(
                         reconstruction.float(), images.float()
                     ) + perceptual_weight * loss_perceptual(reconstruction.float(), images.float())
