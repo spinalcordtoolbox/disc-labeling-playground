@@ -116,8 +116,8 @@ def main():
         num_channels=args.autoencoder_def["num_channels"],
         num_res_channels=args.autoencoder_def["num_channels"][-1],
         num_res_layers=args.autoencoder_def["num_res_blocks"],
-        num_embeddings=args.autoencoder_def["num_channels"][0],
-        embedding_dim= 64
+        num_embeddings=args.num_embeddings,
+        embedding_dim=args.embedding_dim
     ).to(device)
 
     trained_g_path = os.path.join(args.model_dir, "vqvae.pt")
