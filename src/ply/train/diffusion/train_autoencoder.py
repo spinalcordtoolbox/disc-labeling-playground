@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 import torch
 from generative.losses import PatchAdversarialLoss, PerceptualLoss
-from generative.networks.nets import VQVAE, PatchDiscriminator
+from generative.networks.nets import PatchDiscriminator
 from monai.config import print_config
 from monai.utils import set_determinism
 from torch.nn import L1Loss, MSELoss
@@ -31,6 +31,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import define_instance, setup_ddp, prepare_dataloader
 
 from ply.utils.plot import get_validation_image_diff_2d
+from ply.models.diffusion.vqvae import VQVAE
 
 
 def main():

@@ -33,6 +33,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import define_instance, prepare_dataloader, setup_ddp
 
 from ply.utils.plot import get_validation_image_diff_2d
+from ply.models.diffusion.vqvae import VQVAE
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
@@ -106,11 +107,20 @@ def main():
     artifact_script.add_file(local_path=os.path.abspath(__file__), name=os.path.basename(__file__))
     wandb.log_artifact(artifact_script)
 
-    # Step 2: Define Autoencoder KL network and diffusion model
-    # Load Autoencoder KL network
-    autoencoder = define_instance(args, "autoencoder_def").to(device)
+    # Step 2: Define VQVAE network and diffusion model
+    # Load VQVAE
+    autoencoder = VQVAE(
+        spatial_dims=2,
+        in_channels=1,
+        out_channels=1,
+        num_channels=args.autoencoder_def["num_channels"],
+        num_res_channels=args.autoencoder_def["num_channels"][-1],
+        num_res_layers=args.autoencoder_def["num_res_blocks"],
+        num_embeddings=args.autoencoder_def["num_channels"][0],
+        embedding_dim= 64
+    ).to(device)
 
-    trained_g_path = os.path.join(args.model_dir, "autoencoder.pt")
+    trained_g_path = os.path.join(args.model_dir, "vqvae.pt")
 
     map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
     autoencoder.load_state_dict(torch.load(trained_g_path, map_location=map_location))
@@ -126,7 +136,7 @@ def main():
     with torch.no_grad():
         with autocast(enabled=True):
             check_data = first(train_loader)
-            z = autoencoder.encode_stage_2_inputs(check_data["image"].to(device))
+            z = autoencoder.encode_stage_2_inputs(check_data["image"].to(device), quantize=False)
             if rank == 0:
                 print(f"Latent feature shape {z.shape}")
                 print(f"Scaling factor set to {1/torch.std(z)}")
