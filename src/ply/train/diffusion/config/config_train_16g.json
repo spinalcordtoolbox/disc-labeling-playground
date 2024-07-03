@@ -20,8 +20,8 @@
     },
     "autoencoder_train": {
         "batch_size": 5,
-        "train_patch_size": [240,240],
-        "val_patch_size": [768,240],
+        "train_patch_size": [256,256],
+        "val_patch_size": [768,256],
         "lr": 2.5e-5,
         "perceptual_weight": 1.0,
         "kl_weight": 1e-6,
