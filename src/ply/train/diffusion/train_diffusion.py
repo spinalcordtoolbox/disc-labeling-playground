@@ -24,7 +24,6 @@ import wandb
 
 import torch
 import torch.nn.functional as F
-from generative.inferers import LatentDiffusionInferer
 from generative.networks.schedulers import DDPMScheduler
 from monai.config import print_config
 from monai.utils import first, set_determinism
@@ -34,6 +33,7 @@ from utils import define_instance, prepare_dataloader, setup_ddp
 
 from ply.utils.plot import get_validation_image_diff_2d
 from ply.models.diffusion.vqvae import VQVAE
+from ply.models.diffusion.ldm import LatentDiffusionInferer
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
