@@ -3,6 +3,7 @@
     "spatial_dims": 2,
     "image_channels": 1,
     "latent_channels": 1,
+    "embedding_dim": 8,
     "sample_axis": 0,
     "autoencoder_def": {
         "_target_": "generative.networks.nets.AutoencoderKL",
@@ -29,7 +30,6 @@
         "n_epochs": 1000,
         "val_interval": 1
     },
-    "embedding_dim": 64,
     "diffusion_def": {
         "_target_": "generative.networks.nets.DiffusionModelUNet",
         "spatial_dims": "@spatial_dims",
