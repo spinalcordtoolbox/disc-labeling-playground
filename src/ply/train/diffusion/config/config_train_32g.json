@@ -4,7 +4,7 @@
     "image_channels": 1,
     "latent_channels": 1,
     "embedding_dim": 8,
-    "num_embeddings":1024,
+    "num_embeddings":256,
     "sample_axis": 0,
     "autoencoder_def": {
         "_target_": "generative.networks.nets.AutoencoderKL",
@@ -12,7 +12,7 @@
         "in_channels": "$@image_channels",
         "out_channels": "@image_channels",
         "latent_channels": "@latent_channels",
-        "num_channels": [128, 256, 512],
+        "num_channels": [256, 512, 1024],
         "num_res_blocks": 2,
         "norm_num_groups": 32,
         "norm_eps": 1e-06,
