@@ -4,7 +4,7 @@
     "image_channels": 1,
     "latent_channels": 1,
     "embedding_dim": 8,
-    "num_embeddings":256,
+    "num_embeddings":1024,
     "sample_axis": 0,
     "autoencoder_def": {
         "_target_": "generative.networks.nets.AutoencoderKL",
