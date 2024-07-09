@@ -142,10 +142,6 @@ def get_validation_image_diff_2d(target_img, pred_img, mask=None):
         y_pred = y_pred[:,:]
         if mask is not None:
             m = m[:,:]
-
-        # Clip intensity
-        y = np.clip(y, 0, None)
-        y_pred = np.clip(y_pred, 0, None)
         
         # Normalize intensity
         if mask is None:
