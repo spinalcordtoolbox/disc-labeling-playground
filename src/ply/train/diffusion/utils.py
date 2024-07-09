@@ -380,7 +380,7 @@ def prepare_dataloader_inference(
                 ),
             CenterSpatialCropd(keys=["image", "mask"], roi_size=val_patch_size),
             ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1), # Create binary mask
-            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="random"),
+            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="end"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=100.0, b_min=-1, b_max=1),
             SplitDimd(keys=["image", "mask"], dim=1 + sample_axis, keepdim=False, list_output=True),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -390,7 +390,6 @@ def prepare_dataloader_inference(
     # Format input path
     inf_list = [
         {"image":os.path.abspath(img_path), "mask":os.path.abspath(img_path)},
-        {"image":os.path.abspath(img_path.replace('T2w', 'T1w')), "mask":os.path.abspath(img_path.replace('T2w', 'T1w'))},
     ]
     
     # Define train and inference dataset
