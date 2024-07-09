@@ -137,7 +137,7 @@ def main():
                 scheduler=scheduler,
             )
         
-        filename = os.path.join(args.output_dir, datetime.now().strftime("synimg_%Y%m%d_%H%M%S.jpeg"))
+        filename = os.path.join(args.output_dir, os.path.basename(input_path).replace(".nii.gz") + "_extended" + ".jpeg")
         final_img = synthetic_images[0, 0, ...].cpu().numpy().transpose(1, 0)[::-1, ::-1]
         img = Image.fromarray(visualize_2d_image(final_img), "RGB")
         img.save(filename)
