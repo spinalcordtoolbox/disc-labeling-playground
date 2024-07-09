@@ -168,3 +168,71 @@ class LatentDiffusionInferer(DiffusionInferer):
             intermediates = [resizer(x) for x in intermediates]
             outputs = (outputs[0], intermediates)
         return outputs
+    
+    @torch.no_grad()
+    def paint(
+        self,
+        inputs: torch.Tensor,
+        noise: torch.Tensor,
+        mask: torch.Tensor,
+        timesteps: torch.Tensor,
+        autoencoder_model: Callable[..., torch.Tensor],
+        diffusion_model: Callable[..., torch.Tensor],
+        scheduler: Callable[..., torch.Tensor] | None = None,
+        save_intermediates: bool | None = False,
+        intermediate_steps: int | None = 100,
+        conditioning: torch.Tensor | None = None,
+        verbose: bool = True,
+    ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
+        """
+        Generate a sample from a partially noised input
+
+        Args:
+            input: input image that will be partially noised.
+            noise: random noise, of the same shape as the latent representation.
+            mask: timesteps corresponding to the amount of noise that will be added
+            autoencoder_model: first stage model.
+            diffusion_model: model to sample from.
+            scheduler: diffusion scheduler. If none provided will use the class attribute scheduler.
+            save_intermediates: whether to return intermediates along the sampling change
+            intermediate_steps: if save_intermediates is True, saves every n steps
+            conditioning: Conditioning for network input.
+            verbose: if true, prints the progression bar of the sampling process.
+        """
+        with torch.no_grad():
+            latent = autoencoder_model.encode_stage_2_inputs(inputs, quantize=False) * self.scale_factor
+
+        noisy_image = scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
+
+        if verbose and has_tqdm:
+            progress_bar = tqdm(timesteps)
+        else:
+            progress_bar = iter(timesteps)
+        intermediates = []
+        for t in progress_bar:
+            # 1. predict noise model_output
+            model_output = diffusion_model(
+                image, timesteps=torch.Tensor((t,)).to(noisy_image.device), context=conditioning
+            )
+
+            # 2. compute previous image: x_t -> x_t-1
+            image, _ = scheduler.step(model_output, t, image)
+            if save_intermediates and t % intermediate_steps == 0:
+                intermediates.append(image)
+
+        if save_intermediates:
+            latent = image
+            latent_intermediates = intermediates
+        else:
+            latent = image
+
+        image = autoencoder_model.decode_stage_2_outputs(latent / self.scale_factor)
+
+        if save_intermediates:
+            intermediates = []
+            for latent_intermediate in latent_intermediates:
+                intermediates.append(autoencoder_model.decode_stage_2_outputs(latent_intermediate / self.scale_factor))
+            return image, intermediates
+
+        else:
+            return image
