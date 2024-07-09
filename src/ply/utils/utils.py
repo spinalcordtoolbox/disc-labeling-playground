@@ -388,7 +388,7 @@ def normalize(arr):
     '''
     ma = arr.max()
     mi = arr.min()
-    return ((arr - mi) / (ma - mi))
+    return ((arr - mi) / (ma - mi + 0.00001))
 
 
 ##
