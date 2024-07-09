@@ -34,10 +34,11 @@ from monai.transforms import (
     SplitDimd,
     SqueezeDimd,
     NormalizeIntensityd,
-    Spacingd
+    Spacingd,
 )
 
 from ply.utils.load_config import fetch_image_config_cGAN
+from ply.models.transform import SpatialPadd
 
 
 def setup_ddp(rank, world_size):
@@ -339,6 +340,78 @@ def prepare_dataloader(
     if rank == 0:
         print(f'Image shape {train_ds[0][0]["image"].shape}')
     return train_loader, val_loader
+
+def prepare_dataloader_inference(
+    img_path,
+    v_patch_size,
+    amp=False,
+    sample_axis=0,
+    cache=1.0,
+    num_center_slice=5,
+):
+
+    if sample_axis == 0:
+        # sagittal
+        val_patch_size = [num_center_slice] + v_patch_size
+    elif sample_axis == 1:
+        # coronal
+        val_patch_size = [v_patch_size[0], num_center_slice, v_patch_size[1]]
+    elif sample_axis == 2:
+        # axial
+        val_patch_size =  v_patch_size + [num_center_slice]
+    else:
+        raise ValueError("sample_axis has to be in [0,1,2]")
+
+    if amp:
+        compute_dtype = torch.float16
+    else:
+        compute_dtype = torch.float32
+
+    inf_transforms = Compose(
+        [
+            LoadImaged(keys=["image", "mask"]),
+            EnsureChannelFirstd(keys=["image", "mask"]),
+            EnsureTyped(keys=["image", "mask"]),
+            Orientationd(keys=["image", "mask"], axcodes="LIA"),
+            Spacingd(
+                    keys=["image", "mask"],
+                    pixdim=(6,1,1),
+                    mode=2, # spline interpolation
+                ),
+            CenterSpatialCropd(keys=["image", "mask"], roi_size=val_patch_size),
+            ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1), # Create binary mask
+            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="random"),
+            ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=100.0, b_min=-1, b_max=1),
+            SplitDimd(keys=["image", "mask"], dim=1 + sample_axis, keepdim=False, list_output=True),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+            EnsureTyped(keys=["image", "mask"], dtype=compute_dtype),
+        ]
+    )
+    # Format input path
+    inf_list = [
+        {"image":os.path.abspath(img_path), "mask":os.path.abspath(img_path)},
+        {"image":os.path.abspath(img_path.replace('T2w', 'T1w')), "mask":os.path.abspath(img_path.replace('T2w', 'T1w'))},
+    ]
+    
+    # Define train and inference dataset
+    inf_ds = CacheDataset(
+                        data=inf_list,
+                        transform=inf_transforms,
+                        cache_rate=0.5,
+                        num_workers=5,
+                        )
+    
+    inf_loader = DataLoader(
+        inf_ds,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=False,
+        sampler=None,
+    )
+    
+    print(f'Image shape {inf_ds[0][0]["image"].shape}')
+    return inf_loader
 
 
 def define_instance(args, instance_def_key):
