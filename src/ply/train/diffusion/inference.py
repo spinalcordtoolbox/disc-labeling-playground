@@ -128,14 +128,15 @@ def main():
         noise = torch.randn(noise_shape, dtype=images.dtype).to(device)
 
         with torch.no_grad():
-            synthetic_images = inferer.paint(
-                inputs=images,
-                noise=noise,
-                mask=masks,
-                autoencoder_model=autoencoder,
-                diffusion_model=diffusion_model,
-                scheduler=scheduler,
-            )
+            with autocast(enabled=True):
+                synthetic_images = inferer.paint(
+                    inputs=images,
+                    noise=noise,
+                    mask=masks,
+                    autoencoder_model=autoencoder,
+                    diffusion_model=diffusion_model,
+                    scheduler=scheduler,
+                )
         
         filename = os.path.join(args.output_dir, os.path.basename(input_path).replace(".nii.gz") + "_extended" + ".jpeg")
         final_img = synthetic_images[0, 0, ...].cpu().numpy().transpose(1, 0)[::-1, ::-1]
