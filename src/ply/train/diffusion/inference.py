@@ -29,6 +29,7 @@ from visualize_image import visualize_2d_image
 
 from ply.models.diffusion.ldm import LatentDiffusionInferer
 from ply.models.diffusion.vqvae import VQVAE
+from ply.utils.plot import get_validation_image_diff_2d
 
 
 def main():
@@ -138,9 +139,16 @@ def main():
                     scheduler=scheduler,
                 )
         
-        filename = os.path.join(args.output_dir, os.path.basename(input_path).replace(".nii.gz") + "_extended" + ".jpeg")
-        final_img = synthetic_images[0, 0, ...].cpu().numpy().transpose(1, 0)[::-1, ::-1]
-        img = Image.fromarray(visualize_2d_image(final_img), "RGB")
+        filename = os.path.join(args.output_dir, os.path.basename(input_path).replace(".nii.gz", "") + "_extended" + ".jpeg")
+        res_img, target_img, pred_img = get_validation_image_diff_2d(images, synthetic_images)
+        img = Image.fromarray(visualize_2d_image(res_img), "RGB")
+
+        # Create output directory
+        out_dir = os.path.dirname(filename)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+        # Save output
         img.save(filename)
 
 
