@@ -121,7 +121,7 @@ def get_validation_image(in_img, target_img, pred_img):
     return img_result, target_line_arr, pred_line_arr
 
 
-def get_validation_image_diff_2d(target_img, pred_img):
+def get_validation_image_diff_2d(target_img, pred_img, mask=None):
     '''
     Get 2d images for validation + input = target
     '''
@@ -133,15 +133,29 @@ def get_validation_image_diff_2d(target_img, pred_img):
         # Load 3D numpy array
         y = target_img[num_batch, 0]
         y_pred = pred_img[num_batch, 0]
+        if mask is not None:
+            m = mask[num_batch, 0]
         shape = y.shape
 
         # Extract middle slice
         y = y[:,:]
         y_pred = y_pred[:,:]
+        if mask is not None:
+            m = m[:,:]
 
+        # Clip intensity
+        y = np.clip(y, 0, None)
+        y_pred = np.clip(y_pred, 0, None)
+        
         # Normalize intensity
-        y = y/np.max(y)*255
-        y_pred = y_pred/np.max(y_pred)*255
+        if mask is None:
+            y = y/(0.0001 + np.max(y))*255
+            y_pred = y_pred/(0.0001 + np.max(y_pred))*255
+        else:
+            y[m] = y[m]/(0.0001 + np.max(y[m]))*255
+            y_pred[m] = y_pred[m]/(0.0001 + np.max(y_pred[m]))*255
+            y[~m] = y[~m]/(0.0001 + np.max(y[~m]))*255
+            y_pred[~m] = y_pred[~m]/(0.0001 + np.max(y_pred[~m]))*255
 
         # Regroup batch
         target_all.append(y)

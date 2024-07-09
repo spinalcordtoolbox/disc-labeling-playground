@@ -140,7 +140,7 @@ def main():
                 )
         
         filename = os.path.join(args.output_dir, os.path.basename(input_path).replace(".nii.gz", "") + "_extended" + ".jpeg")
-        res_img, target_img, pred_img = get_validation_image_diff_2d(images, synthetic_images)
+        res_img, target_img, pred_img = get_validation_image_diff_2d(images, synthetic_images, mask=masks.astype(bool))
         img = Image.fromarray(visualize_2d_image(res_img), "RGB")
 
         # Create output directory
