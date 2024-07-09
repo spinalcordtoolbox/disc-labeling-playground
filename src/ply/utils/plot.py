@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
+from ply.utils.utils import normalize
+
 def save_bar(names, values, output_path, x_axis, y_axis):
     '''
     Create a histogram plot
@@ -145,13 +147,13 @@ def get_validation_image_diff_2d(target_img, pred_img, mask=None):
         
         # Normalize intensity
         if mask is None:
-            y = y/(0.0001 + np.max(y))*255
-            y_pred = y_pred/(0.0001 + np.max(y_pred))*255
+            y = normalize(y)*255
+            y_pred = normalize(y_pred)*255
         else:
-            y[m] = y[m]/(0.0001 + np.max(y[m]))*255
-            y_pred[m] = y_pred[m]/(0.0001 + np.max(y_pred[m]))*255
-            y[~m] = y[~m]/(0.0001 + np.max(y[~m]))*255
-            y_pred[~m] = y_pred[~m]/(0.0001 + np.max(y_pred[~m]))*255
+            y[m] = normalize(y[m])*255
+            y_pred[m] = normalize(y_pred[m])*255
+            y[~m] = normalize(y[~m])*255
+            y_pred[~m] = normalize(y_pred[~m])*255
 
         # Regroup batch
         target_all.append(y)
