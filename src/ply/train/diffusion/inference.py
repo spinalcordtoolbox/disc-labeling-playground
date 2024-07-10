@@ -24,7 +24,7 @@ from generative.networks.schedulers import DDPMScheduler
 from monai.config import print_config
 from monai.utils import set_determinism, first
 from PIL import Image
-from utils import prepare_dataloader_inference, define_instance
+from utils import prepare_dataloader_inference, prepare_dataloader, define_instance
 from visualize_image import visualize_2d_image
 
 from ply.models.diffusion.ldm import LatentDiffusionInferer
@@ -100,9 +100,26 @@ def main():
     autoencoder.load_state_dict(torch.load(trained_g_path))
 
     # Compute Scaling factor
+    size_divisible = 2 ** (len(args.autoencoder_def["num_channels"]) + len(args.diffusion_def["num_channels"]) - 2)
+    train_loader, _ = prepare_dataloader(
+        args,
+        args.diffusion_train["batch_size"],
+        args.diffusion_train["train_patch_size"],
+        args.diffusion_train["val_patch_size"],
+        sample_axis=args.sample_axis,
+        randcrop=True,
+        cache=0.0,
+        download=False,
+        size_divisible=size_divisible,
+        amp=True,
+        train_transform='full',
+        val_transform='full',
+        inf=True
+    )
+
     with torch.no_grad():
         with autocast(enabled=True):
-            check_data = first(inf_loader)
+            check_data = first(train_loader)
             z = autoencoder.encode_stage_2_inputs(check_data["image"].to(device), quantize=False)
             print(f"Latent feature shape {z.shape}")
             print(f"Scaling factor set to {1/torch.std(z)}")

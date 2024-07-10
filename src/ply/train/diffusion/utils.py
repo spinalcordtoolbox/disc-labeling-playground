@@ -202,6 +202,7 @@ def prepare_dataloader(
     num_center_slice=5,
     train_transform='crop',
     val_transform='full',
+    inf=False
 ):
     ddp_bool = world_size > 1
     channel = args.channel  # 0 = Flair, 1 = T1
@@ -302,13 +303,13 @@ def prepare_dataloader(
     
     # Define train and val dataset
     train_ds = CacheDataset(
-                            data=train_list,
+                            data=train_list if not inf else train_list[0],
                             transform=crop_transforms if train_transform == 'crop' else full_transforms,
                             cache_rate=0.5,
                             num_workers=5,
                             )
     val_ds = CacheDataset(
-                        data=val_list,
+                        data=val_list if not inf else val_list[0],
                         transform=full_transforms,
                         cache_rate=0.5,
                         num_workers=5,
