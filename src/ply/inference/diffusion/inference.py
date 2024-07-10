@@ -24,7 +24,7 @@ from generative.networks.schedulers import DDPMScheduler
 from monai.config import print_config
 from monai.utils import set_determinism, first
 from PIL import Image
-from utils import prepare_dataloader_inference, prepare_dataloader, define_instance
+from ply.train.diffusion.utils import prepare_dataloader_inference, prepare_dataloader, define_instance
 from visualize_image import visualize_2d_image
 
 from ply.models.diffusion.ldm import LatentDiffusionInferer
