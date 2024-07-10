@@ -145,6 +145,16 @@ def get_validation_image_diff_2d(target_img, pred_img, mask=None):
         if mask is not None:
             m = m[:,:]
         
+        # Clip prediction
+        if mask is None:
+            percentile_pred = np.percentile(y_pred, 95)
+            y_pred = np.clip(y_pred, None, percentile_pred)
+        else:
+            percentile_pred = np.percentile(y_pred[m], 95)
+            y_pred[m] = np.clip(y_pred[m], None, percentile_pred)
+            percentile_pred = np.percentile(y_pred[~m], 95)
+            y_pred[~m] = np.clip(y_pred[~m], None, percentile_pred)
+        
         # Normalize intensity
         if mask is None:
             y = normalize(y)*255
