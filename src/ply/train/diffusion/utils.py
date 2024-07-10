@@ -303,13 +303,13 @@ def prepare_dataloader(
     
     # Define train and val dataset
     train_ds = CacheDataset(
-                            data=train_list if not inf else train_list[0],
+                            data=train_list if not inf else [train_list[0]],
                             transform=crop_transforms if train_transform == 'crop' else full_transforms,
                             cache_rate=0.5,
                             num_workers=5,
                             )
     val_ds = CacheDataset(
-                        data=val_list if not inf else val_list[0],
+                        data=val_list if not inf else [val_list[0]],
                         transform=full_transforms,
                         cache_rate=0.5,
                         num_workers=5,
