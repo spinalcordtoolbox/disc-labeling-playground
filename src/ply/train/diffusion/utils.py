@@ -275,7 +275,7 @@ def prepare_dataloader(
             SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=100.0, b_min=-1, b_max=1),
             SplitDimd(keys=["image"], dim=1 + sample_axis, keepdim=False, list_output=True),
-            #NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
+            NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
     )
