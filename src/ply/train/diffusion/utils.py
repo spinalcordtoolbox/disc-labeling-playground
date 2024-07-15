@@ -22,6 +22,7 @@ from monai.bundle import ConfigParser
 from monai.data import DataLoader, CacheDataset
 from monai.transforms import (
     CenterSpatialCropd,
+    RandSpatialCropd,
     Compose,
     DivisiblePadd,
     EnsureChannelFirstd,
@@ -377,7 +378,7 @@ def prepare_dataloader_inference(
                     pixdim=(6,1,1),
                     mode=2, # spline interpolation
                 ),
-            CenterSpatialCropd(keys=["image", "mask"], roi_size=val_patch_size),
+            RandSpatialCropd(keys=["image", "mask"], roi_size=(5, 256, 256)),
             ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1), # Create binary mask
             SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="symmetric"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
