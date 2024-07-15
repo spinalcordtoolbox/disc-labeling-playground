@@ -353,7 +353,7 @@ class SpatialPadd(Padd):
         self,
         keys: KeysCollection,
         spatial_size: Sequence[int] | int,
-        method: str = "symetric",
+        method: str = "symmetric",
         mode: str = "constant",
         allow_missing_keys: bool = False,
         lazy: bool = False,
@@ -420,7 +420,7 @@ class SpatialPad(Pad):
     def __init__(
         self,
         spatial_size: Sequence[int] | int | tuple[tuple[int, ...] | int, ...],
-        method: str = "symetric",
+        method: str = "symmetric",
         mode: str = "constant",
         lazy: bool = False,
         **kwargs,
@@ -438,7 +438,7 @@ class SpatialPad(Pad):
 
         """
         spatial_size = fall_back_tuple(self.spatial_size, spatial_shape)
-        if self.method == "symetric":
+        if self.method == "symmetric":
             pad_width = []
             for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - spatial_shape[i], 0)
