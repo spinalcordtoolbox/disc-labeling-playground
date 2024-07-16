@@ -230,7 +230,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         latent_mask = latent_mask.repeat(1, shape[1], 1, 1) # Repeat mask along the channels dimension
 
         # Initialise out_image with input noise
-        out_image = scheduler.add_noise(original_samples=latent, noise=noise, timesteps=scheduler.timesteps[0])
+        out_image = noise
 
         if verbose and has_tqdm:
             progress_bar = tqdm(scheduler.timesteps)
