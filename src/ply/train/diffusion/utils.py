@@ -36,6 +36,7 @@ from monai.transforms import (
     SqueezeDimd,
     NormalizeIntensityd,
     Spacingd,
+    ResizeWithPadOrCropd
 )
 
 from ply.utils.load_config import fetch_image_config_cGAN
@@ -310,6 +311,133 @@ def prepare_dataloader(
     val_ds = CacheDataset(
                         data=val_list if not inf else [val_list[0]],
                         transform=full_transforms,
+                        cache_rate=0.5,
+                        num_workers=5,
+                        )
+    
+    if ddp_bool:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_ds, num_replicas=world_size, rank=rank)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_ds, num_replicas=world_size, rank=rank)
+    else:
+        train_sampler = None
+        val_sampler = None
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=1,
+        shuffle=(not ddp_bool),
+        num_workers=0,
+        pin_memory=False,
+        sampler=train_sampler,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=False,
+        sampler=val_sampler,
+    )
+    if rank == 0:
+        print(f'Image shape {train_ds[0][0]["image"].shape}')
+    return train_loader, val_loader
+
+def prepare_dataloader_diffusion_withmask(
+    args,
+    batch_size,
+    t_patch_size,
+    v_patch_size,
+    amp=False,
+    sample_axis=0,
+    randcrop=True,
+    rank=0,
+    world_size=1,
+    cache=1.0,
+    download=False,
+    size_divisible=4,
+    num_center_slice=5,
+    inf=False
+):
+    ddp_bool = world_size > 1
+    channel = args.channel  # 0 = Flair, 1 = T1
+    assert channel in [0, 1, 2, 3], "Choose a valid channel"
+
+    if sample_axis == 0:
+        # sagittal
+        train_patch_size = [1] + t_patch_size
+        val_patch_size = [num_center_slice] + v_patch_size
+        size_divisible_3d = [1, size_divisible, size_divisible]
+    elif sample_axis == 1:
+        # coronal
+        train_patch_size = [t_patch_size[0], 1, t_patch_size[1]]
+        val_patch_size = [v_patch_size[0], num_center_slice, v_patch_size[1]]
+        size_divisible_3d = [size_divisible, 1, size_divisible]
+    elif sample_axis == 2:
+        # axial
+        train_patch_size = t_patch_size + [1]
+        val_patch_size =  v_patch_size + [num_center_slice]
+        size_divisible_3d = [size_divisible, size_divisible, 1]
+    else:
+        raise ValueError("sample_axis has to be in [0,1,2]")
+
+    if amp:
+        compute_dtype = torch.float16
+    else:
+        compute_dtype = torch.float32
+
+    
+    diff_transforms = Compose(
+        [
+            LoadImaged(keys=["image", "mask"]),
+            EnsureChannelFirstd(keys=["image", "mask"]),
+            EnsureTyped(keys=["image", "mask"]),
+            Orientationd(keys=["image", "mask"], axcodes="LIA"),
+            Spacingd(
+                    keys=["image", "mask"],
+                    pixdim=(6,1,1),
+                    mode=2, # spline interpolation
+                ),
+            ResizeWithPadOrCropd(keys=["image", "mask"], roi_size=(num_center_slice, 768, 256)),
+            RandSpatialCropd(keys=["mask"], roi_size=(num_center_slice, 256, 256), random_size=True),
+            ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1, clip=True), # Create binary mask
+            SpatialPadd(keys=["mask"], spatial_size=(num_center_slice, 768, 256), method="random"),
+            ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="random"),
+            SplitDimd(keys=["image", "mask"], dim=1 + sample_axis, keepdim=False, list_output=True),
+            EnsureTyped(keys=["image","mask"], dtype=compute_dtype),
+        ]
+    )
+    # Load config data
+    # Read json file and create a dictionary
+    with open(args.data_config, "r") as file:
+        config_data = json.load(file)
+
+    # Load images for training and validation
+    print('loading images...')
+    train_list, err_train = fetch_image_config_cGAN(
+                                            config_data=config_data,
+                                            split='TRAINING',
+                                            qc=False,
+                                            image_only=True
+                                            )
+    train_list = [{"image":dic["image"], "mask":dic["image"]} for dic in train_list]
+    val_list, err_val = fetch_image_config_cGAN(
+                                            config_data=config_data,
+                                            split='VALIDATION',
+                                            qc=False,
+                                            image_only=True
+                                            )
+    val_list = [{"image":dic["image"], "mask":dic["image"]} for dic in val_list]
+    # Define train and val dataset
+    train_ds = CacheDataset(
+                            data=train_list if not inf else [train_list[0]],
+                            transform=diff_transforms,
+                            cache_rate=0.5,
+                            num_workers=5,
+                            )
+    val_ds = CacheDataset(
+                        data=val_list if not inf else [val_list[0]],
+                        transform=diff_transforms,
                         cache_rate=0.5,
                         num_workers=5,
                         )
