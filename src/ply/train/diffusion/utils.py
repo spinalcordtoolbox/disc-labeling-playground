@@ -255,8 +255,8 @@ def prepare_dataloader(
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
-            DivisiblePadd(keys=["image"], k=size_divisible_3d),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            DivisiblePadd(keys=["image"], k=size_divisible_3d),
             train_crop_transform,
             SqueezeDimd(keys="image", dim=1 + sample_axis),
             EnsureTyped(keys="image", dtype=compute_dtype),
@@ -274,8 +274,8 @@ def prepare_dataloader(
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
-            SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             SplitDimd(keys=["image"], dim=1 + sample_axis, keepdim=False, list_output=True),
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
