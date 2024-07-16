@@ -274,8 +274,8 @@ def prepare_dataloader(
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
-            SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             SplitDimd(keys=["image"], dim=1 + sample_axis, keepdim=False, list_output=True),
             EnsureTyped(keys="image", dtype=compute_dtype),
         ]
@@ -508,8 +508,8 @@ def prepare_dataloader_inference(
                 ),
             RandSpatialCropd(keys=["image", "mask"], roi_size=(5, 256, 256)),
             ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1), # Create binary mask
-            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="symmetric"),
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="symmetric"),
             SplitDimd(keys=["image", "mask"], dim=1 + sample_axis, keepdim=False, list_output=True),
             EnsureTyped(keys=["image", "mask"], dtype=compute_dtype),
         ]
