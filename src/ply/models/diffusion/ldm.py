@@ -216,7 +216,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         intermediates = []
         for t in progress_bar:
             # Generate noisy input (forward process)
-            noisy_image = scheduler.add_noise(original_samples=latent, noise=noise, timesteps=(t))
+            noisy_image = scheduler.add_noise(original_samples=latent, noise=out_image, timesteps=(t))
 
             # 1. predict noise model_output
             model_output = diffusion_model(
