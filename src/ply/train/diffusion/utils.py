@@ -274,7 +274,7 @@ def prepare_dataloader(
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
-            ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
+            ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=0, b_max=1, clip=True),
             SpatialPadd(keys=["image"], spatial_size=val_patch_size, method="random"),
             SplitDimd(keys=["image"], dim=1 + sample_axis, keepdim=False, list_output=True),
             EnsureTyped(keys="image", dtype=compute_dtype),
