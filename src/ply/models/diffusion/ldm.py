@@ -66,6 +66,29 @@ class LatentDiffusionInferer(DiffusionInferer):
         )
 
         return prediction
+    
+    def train_paint(
+        self,
+        inputs: torch.Tensor,
+        masks: torch.Tensor,
+        autoencoder_model: Callable[..., torch.Tensor],
+        diffusion_model: Callable[..., torch.Tensor],
+        noise: torch.Tensor,
+        timesteps: torch.Tensor,
+        condition: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """
+        Train inpainting custom
+        """
+        with torch.no_grad():
+            latent = autoencoder_model.encode_stage_2_inputs(inputs, quantize=False) * self.scale_factor
+
+        prediction = super().__call__(
+            inputs=latent, diffusion_model=diffusion_model, noise=noise, timesteps=timesteps, condition=condition
+        )
+
+        return prediction
+
 
     @torch.no_grad()
     def sample(
@@ -214,9 +237,10 @@ class LatentDiffusionInferer(DiffusionInferer):
         else:
             progress_bar = iter(scheduler.timesteps)
         intermediates = []
+        new_noise = noise
         for t in progress_bar:
             # Generate noisy input (forward process)
-            noisy_image = scheduler.add_noise(original_samples=latent, noise=out_image, timesteps=(t))
+            noisy_image = scheduler.add_noise(original_samples=latent, noise=new_noise, timesteps=(t))
 
             # 1. predict noise model_output
             model_output = diffusion_model(
@@ -226,7 +250,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             # Based on https://dl.acm.org/doi/abs/10.1145/3592450
             diff_image, _ = scheduler.step(model_output, t, out_image)
             out_image = diff_image * (1 - latent_mask) + noisy_image * latent_mask
-
+            new_noise = diff_image
             # Save intermediate steps
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(out_image)
