@@ -248,9 +248,9 @@ class LatentDiffusionInferer(DiffusionInferer):
             )
             # 2. compute previous image: x_t -> x_t-1
             # Based on https://dl.acm.org/doi/abs/10.1145/3592450
-            diff_image, _ = scheduler.step(model_output, t, out_image)
+            diff_image, _, var = scheduler.step(model_output, t, out_image, out_variance=True)
             out_image = diff_image * (1 - latent_mask) + noisy_image * latent_mask
-            new_noise = diff_image
+            new_noise = var
             # Save intermediate steps
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(out_image)

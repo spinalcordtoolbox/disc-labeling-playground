@@ -20,7 +20,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch.cuda.amp import autocast
-from generative.networks.schedulers import DDPMScheduler
 from monai.config import print_config
 from monai.utils import set_determinism, first
 from PIL import Image
@@ -30,6 +29,7 @@ from ply.train.diffusion.visualize_image import visualize_2d_image
 from ply.models.diffusion.ldm import LatentDiffusionInferer
 from ply.models.diffusion.vqvae import VQVAE
 from ply.utils.plot import get_validation_image_diff_2d
+from ply.models.diffusion.ddpm import DDPMScheduler
 
 
 def main():
