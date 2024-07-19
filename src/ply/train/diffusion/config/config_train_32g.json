@@ -46,7 +46,7 @@
         "train_patch_size": [1280,256],
         "val_patch_size": [1280,256],
         "lr": 1e-5,
-        "n_epochs": 2500,
+        "n_epochs": 2000,
         "val_interval": 2,
         "lr_scheduler_milestones": [1500]
     },
