@@ -158,7 +158,7 @@ def main():
         start_epoch = args.start_epoch
         map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
         try:
-            unet.load_state_dict(torch.load(trained_diffusion_path, map_location=map_location))
+            unet.load_state_dict(torch.load(trained_diffusion_path_last, map_location=map_location))
             print(
                 f"Rank {rank}: Load trained diffusion model from",
                 trained_diffusion_path,
