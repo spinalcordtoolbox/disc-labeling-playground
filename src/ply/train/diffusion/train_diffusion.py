@@ -161,7 +161,7 @@ def main():
             unet.load_state_dict(torch.load(trained_diffusion_path_last, map_location=map_location))
             print(
                 f"Rank {rank}: Load trained diffusion model from",
-                trained_diffusion_path,
+                trained_diffusion_path_last,
             )
         except:
             print(f"Rank {rank}: Train diffusion model from scratch.")
