@@ -251,7 +251,7 @@ def prepare_dataloader(
             Orientationd(keys=["image"], axcodes="LIA"), # RSP- --> LIA+
             Spacingd(
                     keys=["image"],
-                    pixdim=(6,1,1),
+                    pixdim=(-1,1,1),
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
@@ -270,7 +270,7 @@ def prepare_dataloader(
             Orientationd(keys=["image"], axcodes="LIA"),
             Spacingd(
                     keys=["image"],
-                    pixdim=(6,1,1),
+                    pixdim=(-1,1,1),
                     mode=2, # spline interpolation
                 ),
             CenterSpatialCropd(keys=["image"], roi_size=val_patch_size),
