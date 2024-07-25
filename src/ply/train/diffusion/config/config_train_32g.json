@@ -47,7 +47,7 @@
         "val_patch_size": [1280,512],
         "lr": 1e-5,
         "n_epochs": 7000,
-        "val_interval": 2,
+        "val_interval": 20,
         "lr_scheduler_milestones": [4000, 6000]
     },
     "NoiseScheduler": {
