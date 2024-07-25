@@ -43,8 +43,8 @@
     },
     "diffusion_train": {
         "batch_size": 80,
-        "train_patch_size": [1280,256],
-        "val_patch_size": [1280,256],
+        "train_patch_size": [1280,512],
+        "val_patch_size": [1280,512],
         "lr": 1e-5,
         "n_epochs": 2000,
         "val_interval": 2,
