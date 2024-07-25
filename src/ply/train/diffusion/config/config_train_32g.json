@@ -51,7 +51,7 @@
         "lr_scheduler_milestones": [4000, 6000]
     },
     "NoiseScheduler": {
-        "num_train_timesteps": 1000,
+        "num_train_timesteps": 2000,
         "beta_start": 0.0015,
         "beta_end": 0.0195
     }
