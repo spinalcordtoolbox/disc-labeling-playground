@@ -2,6 +2,6 @@
     "data_config": "/home/GRAMES.POLYMTL.CA/p118739/data/config_data/vert-labeling/lumbar-vander_T2w.json",
     "model_dir": "src/ply/weights/diffusion_2d",
     "output_dir": "./output",
-    "resume_ckpt": true,
+    "resume_ckpt": false,
     "start_epoch": 0
 }
