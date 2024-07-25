@@ -503,10 +503,10 @@ def prepare_dataloader_inference(
             Orientationd(keys=["image", "mask"], axcodes="LIA"),
             Spacingd(
                     keys=["image", "mask"],
-                    pixdim=(6,1,1),
+                    pixdim=(-1,1,1),
                     mode=2, # spline interpolation
                 ),
-            RandSpatialCropd(keys=["image", "mask"], roi_size=(5, 256, 256)),
+            RandSpatialCropd(keys=["image", "mask"], roi_size=(5, -1, 128)),
             ScaleIntensityRangePercentilesd(keys="mask", lower=0, upper=100.0, b_min=1, b_max=1), # Create binary mask
             ScaleIntensityRangePercentilesd(keys="image", lower=0, upper=95, b_min=-1, b_max=1, clip=True),
             SpatialPadd(keys=["image", "mask"], spatial_size=val_patch_size, method="symmetric"),
