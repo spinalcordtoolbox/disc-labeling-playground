@@ -33,7 +33,7 @@ from ply.utils.plot import get_validation_image_diff_2d
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
+    parser = argparse.ArgumentParser(description="Diffusion inpainting")
     parser.add_argument(
         "-e",
         "--environment-file",
