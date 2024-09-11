@@ -9,3 +9,5 @@ argparse
 tqdm
 seaborn
 opencv-python
+lpips
+monai-generative==0.2.2

@@ -185,7 +185,7 @@ def fetch_and_register_config_cGAN(config_data, split='TRAINING', qc=True):
     return out_decathlon_monai, err
 
 
-def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False):
+def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False, image_only=False):
     '''
     :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
     :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
@@ -225,7 +225,7 @@ def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False):
             pR.append(px)
             pS.append(py)
             pP.append(pz)
-        if split != 'TESTING':
+        if split != 'TESTING' or image_only:
             out_decathlon_monai.append({'image':os.path.abspath(input_img_path), 'label':os.path.abspath(input_img_path)})
         else:
             out_decathlon_monai.append({'image':os.path.abspath(input_img_path)})

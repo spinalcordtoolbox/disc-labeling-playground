@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
+from ply.utils.utils import normalize
+
 def save_bar(names, values, output_path, x_axis, y_axis):
     '''
     Create a histogram plot
@@ -12,6 +14,8 @@ def save_bar(names, values, output_path, x_axis, y_axis):
     :param x_axis: x-axis name
     :param y_axis: y-axis name
 
+    command used: 
+    save_bar(names=[str(s) for s in np.unique(S)], values=[list(S).count(s) for s in np.unique(S)], output_path='test.png', x_axis='size (pixel)', y_axis='number')
     '''
             
     # Set position of bar on X axis
@@ -115,5 +119,61 @@ def get_validation_image(in_img, target_img, pred_img):
 
     # Regroup image/target/pred into 1 array
     img_result = np.concatenate((in_line_arr, target_line_arr, pred_line_arr), axis=0)
+    
+    return img_result, target_line_arr, pred_line_arr
+
+
+def get_validation_image_diff_2d(target_img, pred_img, mask=None):
+    '''
+    Get 2d images for validation + input = target
+    '''
+    target_img = target_img.data.cpu().numpy()
+    pred_img = pred_img.data.cpu().numpy()
+    target_all = []
+    pred_all = []
+    for num_batch in range(target_img.shape[0]):
+        # Load 3D numpy array
+        y = target_img[num_batch, 0]
+        y_pred = pred_img[num_batch, 0]
+        if mask is not None:
+            m = mask[num_batch, 0]
+        shape = y.shape
+
+        # Extract middle slice
+        y = y[:,:]
+        y_pred = y_pred[:,:]
+        if mask is not None:
+            m = m[:,:]
+        
+        # Clip prediction
+        if mask is None:
+            percentile_pred = np.percentile(y_pred, 95)
+            y_pred = np.clip(y_pred, None, percentile_pred)
+        else:
+            percentile_pred = np.percentile(y_pred[m], 95)
+            y_pred[m] = np.clip(y_pred[m], None, percentile_pred)
+            percentile_pred = np.percentile(y_pred[~m], 95)
+            y_pred[~m] = np.clip(y_pred[~m], None, percentile_pred)
+        
+        # Normalize intensity
+        if mask is None:
+            y = normalize(y)*255
+            y_pred = normalize(y_pred)*255
+        else:
+            y[m] = normalize(y[m])*255
+            y_pred[m] = normalize(y_pred[m])*255
+            y[~m] = normalize(y[~m])*255
+            y_pred[~m] = normalize(y_pred[~m])*255
+
+        # Regroup batch
+        target_all.append(y)
+        pred_all.append(y_pred)
+    
+    # Regroup batch into 1 array
+    target_line_arr = np.concatenate(np.array(target_all), axis=1)
+    pred_line_arr = np.concatenate(np.array(pred_all), axis=1)
+
+    # Regroup image/target/pred into 1 array
+    img_result = np.concatenate((target_line_arr, pred_line_arr), axis=0)
     
     return img_result, target_line_arr, pred_line_arr
