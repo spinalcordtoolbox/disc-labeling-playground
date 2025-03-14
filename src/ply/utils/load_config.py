@@ -239,3 +239,44 @@ def fetch_image_config_cGAN(config_data, split='TRAINING', qc=False, image_only=
         save_violin([R,S,P], 'size.png', x_names=['R-L','S-I','P-A'], x_axis='axis', y_axis='size (pixel)')
         save_violin([pR,pS,pP], 'res.png', x_names=['R-L','S-I','P-A'], x_axis='axis', y_axis='resolution (mm/pixel)')
     return out_decathlon_monai, err
+
+
+def fetch_data_config(config_data, split='TRAINING'):
+    '''
+    :param config_data: Config dict where every label used for TRAINING, VALIDATION and/or TESTING has its path specified
+    :param split: Split of the data needed in the config file ('TRAINING', 'VALIDATION', 'TESTING').
+    :return: out_decathlon_monai: list of dictionary with image and label paths (like monai load_decathlon_datalist)
+        [
+            {'image': '/workspace/data/chest_19.nii.gz',  'label': '/workspace/data/chest_19_label.nii.gz'},
+            {'image': '/workspace/data/chest_31.nii.gz',  'label': '/workspace/data/chest_31_label.nii.gz'}
+        ]
+    '''
+
+    # Check config type to ensure that labels paths are specified and not images
+    if config_data['TYPE'] != 'LABEL':
+        raise ValueError('TYPE error: Type LABEL not detected')
+    
+    # Get file paths based on split
+    dict_list = config_data[split]
+    
+    # Init progression bar
+    bar = Bar(f'Load {split} data', max=len(dict_list))
+    
+    err = []
+    out_decathlon_monai = []
+    for di in dict_list:
+        img_path = os.path.join(config_data['DATASETS_PATH'], di['IMAGE'])
+        seg_path = os.path.join(config_data['DATASETS_PATH'], di['LABEL'])
+
+        # Check if path exists
+        if not os.path.exists(img_path) or not os.path.exists(seg_path):
+            err.append(seg_path)
+        else:
+            # Output paths using MONAI load_decathlon_datalist format
+            out_decathlon_monai.append({'image':img_path, 'label':seg_path})
+        
+        # Plot progress
+        bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
+        bar.next()
+    bar.finish()
+    return out_decathlon_monai, err
