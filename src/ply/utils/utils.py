@@ -480,3 +480,19 @@ def qc_side_by_side(image_name, image, target, qc_path):
     if not os.path.exists(qc_ax_path):
         os.makedirs(qc_ax_path)
     cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
+
+
+def compute_dsc(gt_mask, pred_mask):
+    """
+    :param gt_mask: Ground truth mask used as the reference
+    :param pred_mask: Prediction mask
+
+    :return: dsc=2*intersection/(number of non zero pixels)
+    """
+    numerator = 2 * (gt_mask*pred_mask).sum()
+    denominator = gt_mask.sum() + pred_mask.sum()
+    if denominator == 0:
+        # Both ground truth and prediction are empty
+        return 0
+    else:
+        return numerator / denominator  
