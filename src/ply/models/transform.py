@@ -453,4 +453,75 @@ class SpatialPad(Pad):
                 rand_width = random.randint(0, width)
                 pad_width.append((int(rand_width), int(width - (rand_width))))
         return tuple([(0, 0)] + pad_width)  # type: ignore
-    
+
+
+class ConvertDsegToMultiChannels(MapTransform):
+    """
+    Convert labels to multi channels:
+    Channels 1 and 2 correspond to vertebrae and adjacent vertebrae belong to two different channels
+    Channel 3 corresponds to C2 vertebra
+    Channel 4 corresponds to T1 vertebra
+    Channel 5 corresponds to L1 vertebra
+    Channel 6 corresponds to the sacrum
+    """
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            device = d[key].device
+            result = []
+            unique = [int(u) for u in torch.unique(d[key]) if 0 < u] # remove background
+            unique_nosacrum = [int(u) for u in unique if u < 26 or u == 28] # Exclude sacrum and cocygis but include T13
+            vert_mapping = {'odd':[], 'even':[]}
+            if 28 in unique_nosacrum: # Presence of T13
+                unique_nosacrum.remove(28)
+                if sorted(unique_nosacrum) == torch.arange(min(unique_nosacrum), max(unique_nosacrum)+1, step=1).tolist():
+                    for v in unique_nosacrum:
+                        if (v%2==1 and v<20) or (v%2==0 and v>=20):
+                            vert_mapping["odd"].append(v)
+                        else:
+                            vert_mapping["even"].append(v)
+                        vert_mapping["even"].append(28)
+                else:
+                    raise ValueError('Labels should be consecutive')
+                
+            else:
+                if sorted(unique_nosacrum) == torch.arange(min(unique_nosacrum), max(unique_nosacrum)+1, step=1).tolist(): # Check if labels are consecutive
+                    for v in unique_nosacrum:
+                        if v%2==1:
+                            vert_mapping["odd"].append(v)
+                        else:
+                            vert_mapping["even"].append(v)
+                else:
+                    raise ValueError('Labels should be consecutive')
+
+            # add even and odd vertebrae
+            channels = ["even", "odd"]
+            random.shuffle(channels)
+            result.append(torch.isin(d[key], torch.tensor(vert_mapping[channels[0]], device=device)))
+            result.append(torch.isin(d[key], torch.tensor(vert_mapping[channels[1]], device=device)))
+
+            # add vertebrae landmarks
+            # C2
+            if 2 in unique:
+                result.append(d[key] == 2)
+            else:
+                result.append(torch.zeros_like(d[key]))
+            # T1
+            if 8 in unique:
+                result.append(d[key] == 8)
+            else:
+                result.append(torch.zeros_like(d[key]))
+            # L1
+            if 20 in unique:
+                result.append(d[key] == 20)
+            else:
+                result.append(torch.zeros_like(d[key]))
+            # Sacrum
+            if any(torch.isin(torch.tensor(unique, device=device),torch.tensor([26, 29, 30, 31, 32], device=device))):
+                result.append(torch.isin(d[key],torch.tensor([26, 29, 30, 31, 32], device=device)))
+            else:
+                result.append(torch.zeros_like(d[key]))
+            # Stack output
+            d[key] = torch.stack(result, axis=0).float()
+        return d
