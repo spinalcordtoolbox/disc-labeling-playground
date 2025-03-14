@@ -197,7 +197,7 @@ def main():
 
     # Create model
     channels=args.channels
-    out_channels = 6
+    out_channels = 7
     if args.model == 'attunet':
         model = AttentionUnet(
                     spatial_dims=3,

@@ -463,6 +463,7 @@ class ConvertDsegToMultiChannels(MapTransform):
     Channel 4 corresponds to T1 vertebra
     Channel 5 corresponds to L1 vertebra
     Channel 6 corresponds to the sacrum
+    Channel 7 corresponds to the coccygis
     """
 
     def __call__(self, data):
@@ -517,6 +518,11 @@ class ConvertDsegToMultiChannels(MapTransform):
             # Sacrum
             if any(torch.isin(torch.tensor(unique, device=device),torch.tensor([26, 29, 30, 31, 32], device=device))):
                 result.append(torch.isin(d[key],torch.tensor([26, 29, 30, 31, 32], device=device)))
+            else:
+                result.append(torch.zeros_like(d[key]))
+            # Coccygis
+            if 27 in unique:
+                result.append(d[key] == 27)
             else:
                 result.append(torch.zeros_like(d[key]))
             # Stack output
