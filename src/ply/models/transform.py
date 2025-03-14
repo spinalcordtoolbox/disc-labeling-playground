@@ -486,14 +486,11 @@ class ConvertDsegToMultiChannels(MapTransform):
                     raise ValueError('Labels should be consecutive')
                 
             else:
-                if sorted(unique_nosacrum) == torch.arange(min(unique_nosacrum), max(unique_nosacrum)+1, step=1).tolist(): # Check if labels are consecutive
-                    for v in unique_nosacrum:
-                        if v%2==1:
-                            vert_mapping["odd"].append(v)
-                        else:
-                            vert_mapping["even"].append(v)
-                else:
-                    raise ValueError('Labels should be consecutive')
+                for i, v in enumerate(sorted(unique_nosacrum)):
+                    if i%2==1:
+                        vert_mapping["odd"].append(v)
+                    else:
+                        vert_mapping["even"].append(v)
 
             # add even and odd vertebrae
             channels = ["even", "odd"]
