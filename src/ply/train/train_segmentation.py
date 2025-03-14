@@ -279,7 +279,7 @@ def main():
         # 🐝 Plot loss and dice similarity coefficient
         wandb.log({"Loss_train/epoch": train_loss})
         wandb.log({"DSC_train/epoch": train_dsc})
-        wandb.log({"training_lr/epoch": g_lr})
+        wandb.log({"training_lr/epoch": lr})
         
         # evaluate on validation set
         val_loss, val_dsc = validate(val_loader, model, loss_func, epoch, device)
@@ -318,8 +318,8 @@ def validate(data_loader, model, loss_func, epoch, device):
             loss = min(loss1, loss2)
 
             # Calculate DSC
-            dsc1 = compute_dsc(y, y_pred)
-            dsc2 = compute_dsc(y2, y_pred)
+            dsc1 = compute_dsc(y, y_pred).detach().cpu().item()
+            dsc2 = compute_dsc(y2, y_pred).detach().cpu().item()
             dsc = max(dsc1, dsc2)
             dsc_list.append(dsc)
 
@@ -329,7 +329,10 @@ def validate(data_loader, model, loss_func, epoch, device):
 
             # Display first image
             if step == 0:
-                res_img, target_img, pred_img = get_validation_image(x, y, y_fake)
+                if dsc1 == max(dsc1, dsc2):
+                    res_img, target_img, pred_img = get_validation_image(x, y, y_pred)
+                else:
+                    res_img, target_img, pred_img = get_validation_image(x, y2, y_pred)
 
                 # 🐝 log visuals for the first validation batch only in wandb
                 wandb.log({"validation_img/batch_1": wandb.Image(res_img, caption=f'res_{epoch}')})
@@ -350,7 +353,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         y2[:,0,:,:,:], y2[:,1,:,:,:] = y[:,1,:,:,:], y[:,0,:,:,:]
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
         #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             # Get output from model
             y_pred = model(x)
 
@@ -360,8 +363,8 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
             loss = min(loss1, loss2)
 
         # Calculate DSC
-        dsc1 = compute_dsc(y, y_pred)
-        dsc2 = compute_dsc(y2, y_pred)
+        dsc1 = compute_dsc(y, y_pred).detach().cpu().item()
+        dsc2 = compute_dsc(y2, y_pred).detach().cpu().item()
         dsc = max(dsc1, dsc2)
         dsc_list.append(dsc)
 
