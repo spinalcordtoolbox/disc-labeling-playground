@@ -168,13 +168,13 @@ def main():
     train_ds = CacheDataset(
                             data=train_list,
                             transform=train_transforms,
-                            cache_rate=0.5,
+                            cache_rate=0.25,
                             num_workers=None,
                             )
     val_ds = CacheDataset(
                         data=val_list,
                         transform=val_transforms,
-                        cache_rate=0.5,
+                        cache_rate=0.25,
                         num_workers=None,
                         )
 
