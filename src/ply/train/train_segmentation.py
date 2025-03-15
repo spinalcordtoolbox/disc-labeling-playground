@@ -52,7 +52,7 @@ def get_parser():
     parser.add_argument('--crop-size', type=tuple_type_int, default=(128, 96, 96), help='Training crop size in RSP orientation(default=(128, 96, 96)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(32, 64, 128, 256, 512), help='Channels if attunet selected (default=32,64,128,256, 512)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
-    parser.add_argument('--lr', default=2.5e-2, type=float, metavar='LR', help='Initial learning rate (default=2.5e-2)')
+    parser.add_argument('--lr', default=1e-4, type=float, metavar='LR', help='Initial learning rate (default=1e-4)')
     parser.add_argument('--weight-folder', type=str, default=os.path.abspath('src/ply/weights/3DSegVert'), help='Folder where the weights will be stored and loaded. Will be created if does not exist. (default="src/ply/weights/3DSegVert")')
     parser.add_argument('--start-weights', type=str, default='', help='Path to the model weights used to start the training.')
     return parser
