@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 
 import monai
 from monai.data import DataLoader, CacheDataset
@@ -243,7 +244,7 @@ def main():
     weights_path = f'{weight_folder}/{json_name.replace("config_SegVert_","").replace(".json", ".pth")}'
 
     # Init criterion
-    loss_func = DiceCELoss() #sigmoid=False, smooth_dr=1e-4)
+    loss_func = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
@@ -310,6 +311,9 @@ def validate(data_loader, model, loss_func, epoch, device):
             # Get output from model
             y_pred = model(x)
 
+            # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
+            y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
+
             # Compute loss
             loss1 = loss_func(y_pred, y)
             loss2 = loss_func(y_pred, y2)
@@ -354,6 +358,9 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         with torch.amp.autocast('cuda'):
             # Get output from model
             y_pred = model(x)
+
+            # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
+            y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
 
             # Compute loss
             loss1 = loss_func(y_pred, y)
