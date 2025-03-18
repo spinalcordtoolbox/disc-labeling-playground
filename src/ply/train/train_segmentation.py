@@ -27,7 +27,8 @@ from monai.transforms import (
     Compose,
     RandFlipd,
     NormalizeIntensityd,
-    RandSpatialCropd
+    RandSpatialCropd,
+    ResizeWithPadOrCropd
 )
 
 from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_reg_rgb, qc_side_by_side, compute_dsc
@@ -137,7 +138,8 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=True),
+            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=False),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
         ]
@@ -153,7 +155,8 @@ def main():
                 pixdim=pixdim,
                 mode=(2, "nearest"),
             ),
-            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=True),
+            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=False),
+            ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
         ]
