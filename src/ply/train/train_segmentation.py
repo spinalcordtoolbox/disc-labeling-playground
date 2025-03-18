@@ -166,12 +166,12 @@ def main():
     train_ds = CacheDataset(
                             data=train_list,
                             transform=train_transforms,
-                            cache_rate=1,
+                            cache_rate=0.1,
                             )
     val_ds = CacheDataset(
                         data=val_list,
                         transform=val_transforms,
-                        cache_rate=1,
+                        cache_rate=0,
                         )
 
     # Define train and val DataLoader
