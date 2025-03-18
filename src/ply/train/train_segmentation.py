@@ -45,7 +45,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Train segmentation model for vertebrae')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
-    parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
+    parser.add_argument('--batch-size', type=int, default=1, help='Training batch size (default=1).')
     parser.add_argument('--nb-epochs', type=int, default=300, help='Number of training epochs (default=300).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([0.3, 0.6, 0.9]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.3, 0.6, 0.9)).')
