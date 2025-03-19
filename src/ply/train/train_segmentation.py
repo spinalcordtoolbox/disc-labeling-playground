@@ -27,7 +27,7 @@ from monai.transforms import (
     Compose,
     RandFlipd,
     NormalizeIntensityd,
-    RandSpatialCropd,
+    RandSpatialCropSamplesd,
     ResizeWithPadOrCropd
 )
 
@@ -138,7 +138,7 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=False),
+            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=5, random_size=False),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -155,7 +155,7 @@ def main():
                 pixdim=pixdim,
                 mode=(2, "nearest"),
             ),
-            RandSpatialCropd(keys=["image", "label"], roi_size=crop_size, random_size=False),
+            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=5, random_size=False),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
