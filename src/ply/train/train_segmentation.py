@@ -302,8 +302,6 @@ def validate(data_loader, model, loss_func, epoch, device):
         for step, batch in enumerate(epoch_iterator):
             # Load input and target
             x, y = (batch["image"].to(device), batch["label"].to(device))
-            y2 = batch["label"].detach().clone().to(device) # ground truth with swapped odd and even vertebrae
-            y2[:,0,:,:,:], y2[:,1,:,:,:] = y[:,1,:,:,:], y[:,0,:,:,:]
 
             # Get output from model
             y_pred = model(x)
@@ -311,19 +309,23 @@ def validate(data_loader, model, loss_func, epoch, device):
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
 
-            # Compute loss
-            loss1 = loss_func(y_pred, y)
-            loss2 = loss_func(y_pred, y2)
-            loss = min(loss1, loss2)
+            # Compute loss for each element in the batch size
+            loss = 0
+            for i in range(y_pred.shape[0]):
+                y1 = y[i].detach().clone().to(device)
+                y2 = y[i].detach().clone().to(device)
+                y2[0,:,:,:], y2[1,:,:,:] = y1[1,:,:,:], y1[0,:,:,:] # ground truth with swapped odd and even vertebrae
+                loss1 = loss_func(y_pred[i], y1)
+                loss2 = loss_func(y_pred[i], y2)
+                loss += min(loss1, loss2)
 
-            # Calculate DSC
-            dsc1 = compute_dsc(y, y_pred).detach().cpu().item()
-            dsc2 = compute_dsc(y2, y_pred).detach().cpu().item()
-            dsc = max(dsc1, dsc2)
-            dsc_list.append(dsc)
+                # Calculate DSC
+                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc_list.append(max(dsc1, dsc2))
 
             epoch_iterator.set_description(
-                "Validation (loss=%2.5f) (DSC=%2.5f)" % (loss.mean().item(), dsc)
+                "Validation (loss=%2.5f) (DSC=%2.5f)" % (loss.mean().item(), np.mean(dsc_list))
             )
 
             # Display first image
@@ -348,8 +350,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = batch["image"].to(device), batch["label"].to(device)
-        y2 = batch["label"].detach().clone().to(device) # ground truth with swapped odd and even vertebrae
-        y2[:,0,:,:,:], y2[:,1,:,:,:] = y[:,1,:,:,:], y[:,0,:,:,:]
+        
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
         #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
         with torch.amp.autocast('cuda'):
@@ -359,16 +360,20 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
 
-            # Compute loss
-            loss1 = loss_func(y_pred, y)
-            loss2 = loss_func(y_pred, y2)
-            loss = min(loss1, loss2)
+            # Compute loss for each element in the batch size
+            loss = 0
+            for i in range(y_pred.shape[0]):
+                y1 = y[i].detach().clone().to(device)
+                y2 = y[i].detach().clone().to(device)
+                y2[0,:,:,:], y2[1,:,:,:] = y1[1,:,:,:], y1[0,:,:,:] # ground truth with swapped odd and even vertebrae
+                loss1 = loss_func(y_pred[i], y1)
+                loss2 = loss_func(y_pred[i], y2)
+                loss += min(loss1, loss2)
 
-        # Calculate DSC
-        dsc1 = compute_dsc(y, y_pred).detach().cpu().item()
-        dsc2 = compute_dsc(y2, y_pred).detach().cpu().item()
-        dsc = max(dsc1, dsc2)
-        dsc_list.append(dsc)
+                # Calculate DSC
+                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc_list.append(max(dsc1, dsc2))
 
         # Train model
         model.zero_grad()
@@ -377,7 +382,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         scaler.update()
 
         epoch_iterator.set_description(
-            "Training (loss=%2.5f) (DSC=%2.5f)" % (loss.mean().item(), dsc)
+            "Training (loss=%2.5f) (DSC=%2.5f)" % (loss.mean().item(), np.mean(dsc_list))
         )
     return loss.mean().item(), np.mean(dsc_list)
     
