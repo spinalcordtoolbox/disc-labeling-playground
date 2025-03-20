@@ -49,7 +49,7 @@ def get_parser():
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([0.3, 0.6, 0.9]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.3, 0.6, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(128, 256, 128), help='Training crop size in RSP orientation(default=(128, 256, 128)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(128, 128, 128), help='Training crop size in RSP orientation(default=(128, 128, 128)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(32, 64, 128, 256, 512), help='Channels if attunet selected (default=32,64,128,256, 512)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--lr', default=1e-4, type=float, metavar='LR', help='Initial learning rate (default=1e-4)')
