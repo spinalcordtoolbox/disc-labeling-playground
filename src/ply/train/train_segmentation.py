@@ -302,9 +302,13 @@ def validate(data_loader, model, loss_func, epoch, device):
         for step, batch in enumerate(epoch_iterator):
             # Load input and target
             x, y = (batch["image"].to(device), batch["label"].to(device))
+            x2 = torch.zeros_like(x).to(device)
 
             # Get output from model
-            y_pred = model(x)
+            for i in range(2):
+                x_in = torch.concatenate((x, x2), axis=1)
+                y_pred = model(x_in)
+                x2 = y_pred[:,0]
 
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
@@ -354,8 +358,8 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         with torch.amp.autocast('cuda'):
             # Get output from model
             for i in range(2):
-                x = torch.concatenate((x, x2), axis=1)
-                y_pred = model(x)
+                x_in = torch.concatenate((x, x2), axis=1)
+                y_pred = model(x_in)
                 x2 = y_pred[:,0]
 
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
