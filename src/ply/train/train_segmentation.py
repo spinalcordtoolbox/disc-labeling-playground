@@ -241,7 +241,7 @@ def main():
     weights_path = f'{weight_folder}/{json_name.replace("config_SegVert_","").replace(".json", ".pth")}'
 
     # Init criterion
-    loss_func = DiceCELoss(sigmoid=False, smooth_dr=1e-4)
+    loss_func = DiceCELoss(sigmoid=True, smooth_dr=1e-4)
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
@@ -314,9 +314,6 @@ def validate(data_loader, model, loss_func, epoch, device):
             
             y_pred[:,2:]=y_out[:,2:] # Add remaining classes
 
-            # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
-            y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
-
             # Compute loss for each element in the batch size
             loss = 0
             for i in range(y_pred.shape[0]):
@@ -369,9 +366,6 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
                 x2 = y_out[:,i].unsqueeze(1).detach()
             
             y_pred[:,2:]=y_out[:,2:] # Add remaining classes
-
-            # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
-            y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
 
             # Compute loss for each element in the batch size
             loss = 0
