@@ -199,7 +199,7 @@ def main():
     if args.model == 'attunet':
         model = AttentionUnet(
                     spatial_dims=3,
-                    in_channels=1,
+                    in_channels=2,
                     out_channels=out_channels,
                     channels=channels,
                     strides=[2]*(len(channels)-1),
@@ -347,12 +347,16 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = batch["image"].to(device), batch["label"].to(device)
+        x2 = torch.zeros_like(x).to(device)
         
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
         #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
         with torch.amp.autocast('cuda'):
             # Get output from model
-            y_pred = model(x)
+            for i in range(2):
+                x = torch.concatenate((x, x2), axis=1)
+                y_pred = model(x)
+                x2 = y_pred[:,0]
 
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
