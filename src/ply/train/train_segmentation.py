@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import monai
 from monai.data import DataLoader, CacheDataset
 from monai.networks.nets import UNet, AttentionUnet, SwinUNETR, UNETR
-from monai.losses import DiceCELoss
+from monai.losses import DiceCELoss, DiceFocalLoss
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -241,7 +241,7 @@ def main():
     weights_path = f'{weight_folder}/{json_name.replace("config_SegVert_","").replace(".json", ".pth")}'
 
     # Init criterion
-    loss_func = DiceCELoss(sigmoid=True, smooth_dr=1e-4)
+    loss_func = DiceFocalLoss(sigmoid=True, smooth_dr=1e-4)
     torch.backends.cudnn.benchmark = True
 
     # Add optimizer
