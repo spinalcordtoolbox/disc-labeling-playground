@@ -303,12 +303,16 @@ def validate(data_loader, model, loss_func, epoch, device):
             # Load input and target
             x, y = (batch["image"].to(device), batch["label"].to(device))
             x2 = torch.zeros_like(x).to(device)
+            y_pred = torch.zeros_like(y).to(device)
 
             # Get output from model
             for i in range(2):
                 x_in = torch.concatenate((x, x2), axis=1)
-                y_pred = model(x_in)
-                x2 = y_pred[:,0].unsqueeze(1).detach()
+                y_out = model(x_in)
+                y_pred[:,i] = y_out[:,i] # Predict odd and even vertebrae in two predictions
+                x2 = y_out[:,i].unsqueeze(1).detach()
+            
+            y_pred[:,2:]=y_out[:,2:] # Add remaining classes
 
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
@@ -352,6 +356,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         # Load input and target
         x, y = batch["image"].to(device), batch["label"].to(device)
         x2 = torch.zeros_like(x).to(device)
+        y_pred = torch.zeros_like(y).to(device)
         
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
         #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
@@ -359,8 +364,11 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
             # Get output from model
             for i in range(2):
                 x_in = torch.concatenate((x, x2), axis=1)
-                y_pred = model(x_in)
-                x2 = y_pred[:,0].unsqueeze(1).detach()
+                y_out = model(x_in)
+                y_pred[:,i] = y_out[:,i] # Predict odd and even vertebrae in two predictions
+                x2 = y_out[:,i].unsqueeze(1).detach()
+            
+            y_pred[:,2:]=y_out[:,2:] # Add remaining classes
 
             # get probabilities from logits based on https://github.com/ivadomed/ms-lesion-agnostic/blob/plb/monai_unet/monai/train_monai_unet_lightning.py
             y_pred = F.relu(y_pred) / F.relu(y_pred).max() if bool(F.relu(y_pred).max()) else F.relu(y_pred)
