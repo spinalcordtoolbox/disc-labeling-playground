@@ -17,8 +17,8 @@ import torch.nn.functional as F
 
 import monai
 from monai.data import DataLoader, CacheDataset
-from monai.networks.nets import UNet, AttentionUnet, SwinUNETR, UNETR
-from monai.losses import DiceCELoss, DiceFocalLoss
+from monai.networks.nets import UNet, SwinUNETR, UNETR
+from monai.losses import DiceCELoss, DiceFocalLoss, DiceLoss
 from monai.transforms import (
     LoadImaged,
     Orientationd,
@@ -37,6 +37,7 @@ from ply.train.utils import adjust_learning_rate
 from ply.models.transform import RandLabelToContourd, ConvertDsegToMultiChannels
 from ply.utils.load_config import fetch_data_config
 from ply.utils.plot import get_validation_image
+from ply.models.segmentation.attunet import AttentionUnet
 
 
 def get_parser():
@@ -195,11 +196,12 @@ def main():
 
     # Create model
     channels=args.channels
-    out_channels = 7
+    out_channels = 1
     if args.model == 'attunet':
         model = AttentionUnet(
                     spatial_dims=3,
-                    in_channels=2,
+                    in_shape=crop_size,
+                    in_channels=1,
                     out_channels=out_channels,
                     channels=channels,
                     strides=[2]*(len(channels)-1),
@@ -302,24 +304,15 @@ def validate(data_loader, model, loss_func, epoch, device):
         for step, batch in enumerate(epoch_iterator):
             # Load input and target
             x, y = (batch["image"].to(device), batch["label"].to(device))
-            x2 = torch.zeros_like(x).to(device)
-            y_pred = torch.zeros_like(y).to(device)
 
             # Get output from model
-            for i in range(2):
-                x_in = torch.concatenate((x, x2), axis=1)
-                y_out = model(x_in)
-                y_pred[:,i] = y_out[:,i] # Predict odd and even vertebrae in two predictions
-                x2 = y_out[:,i].unsqueeze(1).detach()
-            
-            y_pred[:,2:]=y_out[:,2:] # Add remaining classes
+            y_pred = model(x)
 
             # Compute loss for each element in the batch size
             loss = 0
             for i in range(y_pred.shape[0]):
-                y1 = y[i].detach().clone().to(device)
-                y2 = y[i].detach().clone().to(device)
-                y2[0,:,:,:], y2[1,:,:,:] = y1[1,:,:,:], y1[0,:,:,:] # ground truth with swapped odd and even vertebrae
+                y1 = y[i, 0].unsqueeze(0).detach().clone().to(device)
+                y2 = y[i, 1].unsqueeze(0).detach().clone().to(device)
                 loss1 = loss_func(y_pred[i], y1)
                 loss2 = loss_func(y_pred[i], y2)
                 loss += min(loss1, loss2)
@@ -352,27 +345,18 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
         x, y = batch["image"].to(device), batch["label"].to(device)
-        x2 = torch.zeros_like(x).to(device)
-        y_pred = torch.zeros_like(y).to(device)
         
         #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
         #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
         with torch.amp.autocast('cuda'):
             # Get output from model
-            for i in range(2):
-                x_in = torch.concatenate((x, x2), axis=1)
-                y_out = model(x_in)
-                y_pred[:,i] = y_out[:,i] # Predict odd and even vertebrae in two predictions
-                x2 = y_out[:,i].unsqueeze(1).detach()
+            y_pred = model(x)
             
-            y_pred[:,2:]=y_out[:,2:] # Add remaining classes
-
             # Compute loss for each element in the batch size
             loss = 0
             for i in range(y_pred.shape[0]):
-                y1 = y[i].detach().clone().to(device)
-                y2 = y[i].detach().clone().to(device)
-                y2[0,:,:,:], y2[1,:,:,:] = y1[1,:,:,:], y1[0,:,:,:] # ground truth with swapped odd and even vertebrae
+                y1 = y[i, 0].unsqueeze(0).detach().clone().to(device)
+                y2 = y[i, 1].unsqueeze(0).detach().clone().to(device)
                 loss1 = loss_func(y_pred[i], y1)
                 loss2 = loss_func(y_pred[i], y2)
                 loss += min(loss1, loss2)
@@ -383,7 +367,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
                 dsc_list.append(max(dsc1, dsc2))
 
         # Train model
-        model.zero_grad()
+        optimizer.zero_grad()
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
