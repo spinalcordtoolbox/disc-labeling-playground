@@ -298,7 +298,7 @@ def main():
 
 def validate(data_loader, model, loss_func, epoch, device):
     model.eval()
-    dsc_list = []
+    dsc_list = [0]
     epoch_iterator = tqdm(data_loader, desc="Validation (loss=X.X) (DSC=X.X)", dynamic_ncols=True)
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator):
@@ -320,7 +320,8 @@ def validate(data_loader, model, loss_func, epoch, device):
                 # Calculate DSC
                 dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
                 dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
-                dsc_list.append(max(dsc1, dsc2))
+                if dsc1 > 0 or dsc2 > 0:
+                    dsc_list.append(max(dsc1, dsc2))
 
             epoch_iterator.set_description(
                 "Validation (loss=%2.5f) (DSC=%2.5f)" % (loss.mean().item(), np.mean(dsc_list))
@@ -340,7 +341,7 @@ def validate(data_loader, model, loss_func, epoch, device):
 
 def train(data_loader, model, loss_func, optimizer, scaler, device):
     model.train()
-    dsc_list = []
+    dsc_list = [0]
     epoch_iterator = tqdm(data_loader, desc="Training (loss=X.X) (DSC=X.X)", dynamic_ncols=True)
     for step, batch in enumerate(epoch_iterator):
         # Load input and target
@@ -364,7 +365,8 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
                 # Calculate DSC
                 dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
                 dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
-                dsc_list.append(max(dsc1, dsc2))
+                if dsc1 > 0 or dsc2 > 0:
+                    dsc_list.append(max(dsc1, dsc2))
 
         # Train model
         optimizer.zero_grad()
