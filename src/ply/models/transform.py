@@ -499,32 +499,32 @@ class ConvertDsegToMultiChannels(MapTransform):
             result.append(torch.isin(d[key], torch.tensor(vert_mapping[channels[0]], device=device)))
             result.append(torch.isin(d[key], torch.tensor(vert_mapping[channels[1]], device=device)))
 
-            # add vertebrae landmarks
-            # C2
-            if 2 in unique:
-                result.append(d[key] == 2)
-            else:
-                result.append(torch.zeros_like(d[key]))
-            # T1
-            if 8 in unique:
-                result.append(d[key] == 8)
-            else:
-                result.append(torch.zeros_like(d[key]))
-            # L1
-            if 20 in unique:
-                result.append(d[key] == 20)
-            else:
-                result.append(torch.zeros_like(d[key]))
-            # Sacrum
-            if any(torch.isin(torch.tensor(unique, device=device),torch.tensor([26, 29, 30, 31, 32], device=device))):
-                result.append(torch.isin(d[key],torch.tensor([26, 29, 30, 31, 32], device=device)))
-            else:
-                result.append(torch.zeros_like(d[key]))
-            # Coccygis
-            if 27 in unique:
-                result.append(d[key] == 27)
-            else:
-                result.append(torch.zeros_like(d[key]))
+            # # add vertebrae landmarks
+            # # C2
+            # if 2 in unique:
+            #     result.append(d[key] == 2)
+            # else:
+            #     result.append(torch.zeros_like(d[key]))
+            # # T1
+            # if 8 in unique:
+            #     result.append(d[key] == 8)
+            # else:
+            #     result.append(torch.zeros_like(d[key]))
+            # # L1
+            # if 20 in unique:
+            #     result.append(d[key] == 20)
+            # else:
+            #     result.append(torch.zeros_like(d[key]))
+            # # Sacrum
+            # if any(torch.isin(torch.tensor(unique, device=device),torch.tensor([26, 29, 30, 31, 32], device=device))):
+            #     result.append(torch.isin(d[key],torch.tensor([26, 29, 30, 31, 32], device=device)))
+            # else:
+            #     result.append(torch.zeros_like(d[key]))
+            # # Coccygis
+            # if 27 in unique:
+            #     result.append(d[key] == 27)
+            # else:
+            #     result.append(torch.zeros_like(d[key]))
             # Stack output
             d[key] = torch.stack(result, axis=0).float()
         return d
