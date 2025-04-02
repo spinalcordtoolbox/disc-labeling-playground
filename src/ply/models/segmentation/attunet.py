@@ -72,7 +72,7 @@ class AttentionUnet(nn.Module):
         self.up_kernel_size = up_kernel_size
 
         # MLP parameters
-        self.flatten_channels = (reduce(lambda x, y: x * y, self.in_shape)/2**(3*len(self.channels)))*self.channels[-1]
+        self.flatten_channels = int((reduce(lambda x, y: x * y, self.in_shape)/2**(3*(len(self.channels)-1)))*self.channels[-1])
         self.hidden_channels = [self.flatten_channels*2, self.flatten_channels*2]
 
         def _create_block(channels: Sequence[int], strides: Sequence[int]) -> nn.Module:
@@ -158,7 +158,7 @@ class MLPBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Flatten the input
         in_shape = x.shape
-        x_flat = torch.flatten(x)
+        x_flat = torch.flatten(x, start_dim=1)
 
         # Pass through MLP layers
         x_flat = self.mlp(x_flat)
