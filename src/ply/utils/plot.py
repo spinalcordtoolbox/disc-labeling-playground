@@ -103,9 +103,9 @@ def get_validation_image(in_img, target_img, pred_img):
         y_pred = y_pred[shape[0]//2,:,:]
 
         # Normalize intensity
-        x = x/(np.max(x)+0.0001)*255
-        y = y/(np.max(y)+0.0001)*255
-        y_pred = y_pred/(np.max(y_pred)+0.0001)*255
+        x = normalize(x)*255
+        y = normalize(y)*255
+        y_pred = normalize(y_pred)*255
 
         # Regroup batch
         in_all.append(x)
