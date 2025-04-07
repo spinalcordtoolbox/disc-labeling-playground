@@ -263,7 +263,7 @@ def main():
     wandb.log_artifact(artifact_script)
 
     # start a typical PyTorch training
-    val_loss_best = np.inf
+    val_dsc_best = 0
     for epoch in range(args.start_epoch, args.nb_epochs):
         # Adjust learning rate
         if epoch in [int(sch*args.nb_epochs) for sch in args.schedule]:
@@ -287,8 +287,8 @@ def main():
         wandb.log({"DSC_val/epoch": val_dsc})
         
         # remember best acc and save checkpoint
-        if val_loss_best > val_loss:
-            val_loss_best = val_loss
+        if val_dsc > val_dsc_best:
+            val_dsc_best = val_dsc
             state = copy.deepcopy({'weights': model.state_dict()})
             torch.save(state, weights_path)
         
