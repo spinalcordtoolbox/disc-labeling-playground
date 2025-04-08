@@ -318,8 +318,8 @@ def validate(data_loader, model, loss_func, epoch, device):
                 loss += min(loss1, loss2)
 
                 # Calculate DSC
-                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
-                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy(), sigmoid=True)
+                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy(), sigmoid=True)
                 if dsc1 > 0 or dsc2 > 0:
                     dsc_list.append(max(dsc1, dsc2))
 
@@ -363,8 +363,8 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
                 loss += min(loss1, loss2)
 
                 # Calculate DSC
-                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
-                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy())
+                dsc1 = compute_dsc(y1.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy(), sigmoid=True)
+                dsc2 = compute_dsc(y2.detach().cpu().numpy(), y_pred[i].detach().cpu().numpy(), sigmoid=True)
                 if dsc1 > 0 or dsc2 > 0:
                     dsc_list.append(max(dsc1, dsc2))
 

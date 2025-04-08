@@ -482,17 +482,23 @@ def qc_side_by_side(image_name, image, target, qc_path):
     cv2.imwrite(os.path.join(qc_ax_path, image_name.replace('.nii.gz', '.png')), out_ax*255)
 
 
-def compute_dsc(gt_mask, pred_mask):
+def compute_dsc(gt_mask, pred_mask, sigmoid=False):
     """
     :param gt_mask: Ground truth mask used as the reference
     :param pred_mask: Prediction mask
+    :param sigmoid: Apply sigmoid on prediction if True (default=False)
 
     :return: dsc=2*intersection/(number of non zero pixels)
     """
+    if sigmoid:
+        pred_mask = sig_fn(pred_mask)
     numerator = 2 * (gt_mask*pred_mask).sum()
     denominator = gt_mask.sum() + pred_mask.sum()
     if denominator == 0:
         # Both ground truth and prediction are empty
         return 0
     else:
-        return numerator / denominator  
+        return numerator / denominator
+
+def sig_fn(z):
+    return 1/(1 + np.exp(-z))
