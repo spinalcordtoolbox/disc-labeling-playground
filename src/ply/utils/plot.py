@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-from ply.utils.utils import normalize
+from ply.utils.utils import normalize, sig_fn
 
 def save_bar(names, values, output_path, x_axis, y_axis):
     '''
@@ -83,10 +83,12 @@ def plot_discs_distribution(discs_labels_list, out_path):
     save_bar(names, values, out_path, x_axis='Discs number', y_axis='Quantity')
 
 
-def get_validation_image(in_img, target_img, pred_img):
+def get_validation_image(in_img, target_img, pred_img, sigmoid=False):
     in_img = in_img.data.cpu().numpy()
     target_img = target_img.data.cpu().numpy()
     pred_img = pred_img.data.cpu().numpy()
+    if sigmoid:
+        pred_img = sig_fn(pred_img)
     in_all = []
     target_all = []
     pred_all = []

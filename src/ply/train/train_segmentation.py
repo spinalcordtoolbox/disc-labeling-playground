@@ -329,7 +329,7 @@ def validate(data_loader, model, loss_func, epoch, device):
 
             # Display first image
             if step == 0:
-                res_img, target_img, pred_img = get_validation_image(x, y, y_pred)
+                res_img, target_img, pred_img = get_validation_image(x, y, y_pred, sigmoid=True)
 
                 # 🐝 log visuals for the first validation batch only in wandb
                 wandb.log({"validation_img/batch_1": wandb.Image(res_img, caption=f'res_{epoch}')})
