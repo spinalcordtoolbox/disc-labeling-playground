@@ -139,7 +139,7 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=12, random_size=False),
+            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=4, random_size=False),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
