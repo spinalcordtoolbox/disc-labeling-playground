@@ -16,7 +16,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 import monai
-from monai.data import DataLoader, CacheDataset
+from monai.data import DataLoader, CacheDataset, Dataset
 from monai.networks.nets import UNet, SwinUNETR, UNETR
 from monai.losses import DiceCELoss, DiceFocalLoss, DiceLoss
 from monai.transforms import (
@@ -27,11 +27,11 @@ from monai.transforms import (
     Compose,
     RandFlipd,
     NormalizeIntensityd,
-    RandSpatialCropSamplesd,
+    RandCropByPosNegLabeld,
     ResizeWithPadOrCropd
 )
 
-from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_reg_rgb, qc_side_by_side, compute_dsc
+from ply.utils.utils import tuple_type_int, tuple_type_float, tuple2string, normalize, qc_side_by_side, compute_dsc
 from ply.utils.config2parser import parser2config
 from ply.train.utils import adjust_learning_rate
 from ply.models.transform import RandLabelToContourd, ConvertDsegToMultiChannels
@@ -45,12 +45,12 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Train segmentation model for vertebrae')
     parser.add_argument('--config', required=True, help='Config JSON file where every label used for TRAINING, VALIDATION and TESTING has its path specified ~/<your_path>/config_data.json (Required)')
     parser.add_argument('--model', type=str, default='attunet', choices=['attunet', 'unetr', 'swinunetr'] , help='Model used for training. Options:["attunet", "unetr", "swinunetr"] (default="attunet")')
-    parser.add_argument('--batch-size', type=int, default=1, help='Training batch size (default=1).')
+    parser.add_argument('--batch-size', type=int, default=3, help='Training batch size (default=3).')
     parser.add_argument('--nb-epochs', type=int, default=1000, help='Number of training epochs (default=1000).')
     parser.add_argument('--start-epoch', type=int, default=0, help='Starting epoch (default=0).')
     parser.add_argument('--schedule', type=tuple_type_float, default=tuple([0.3, 0.6, 0.9]), help='Fraction of the max epoch where the learning rate will be reduced of a factor gamma (default=(0.3, 0.6, 0.9)).')
     parser.add_argument('--gamma', type=float, default=0.1, help='Factor used to reduce the learning rate (default=0.1)')
-    parser.add_argument('--crop-size', type=tuple_type_int, default=(64, 64, 64), help='Training crop size in RSP orientation(default=(64, 64, 64)).')
+    parser.add_argument('--crop-size', type=tuple_type_int, default=(96, 96, 96), help='Training crop size in RSP orientation(default=(96, 96, 96)).')
     parser.add_argument('--channels', type=tuple_type_int, default=(16, 32, 64, 128, 256, 512), help='Channels if attunet selected (default=16, 32,64,128,256, 512)')
     parser.add_argument('--pixdim', type=tuple_type_float, default=(1, 1, 1), help='Training resolution in RSP orientation (default=(1, 1, 1)).')
     parser.add_argument('--lr', default=1e-5, type=float, metavar='LR', help='Initial learning rate (default=1e-5)')
@@ -139,7 +139,7 @@ def main():
                 spatial_axis=[2],
                 prob=0.10,
             ),
-            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=4, random_size=False),
+            RandCropByPosNegLabeld(keys=["image", "label"], label_key="label", spatial_size=crop_size, pos=3, neg=1, num_samples=3, allow_smaller=True),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -156,7 +156,7 @@ def main():
                 pixdim=pixdim,
                 mode=(2, "nearest"),
             ),
-            RandSpatialCropSamplesd(keys=["image", "label"], roi_size=crop_size, num_samples=4, random_size=False),
+            RandCropByPosNegLabeld(keys=["image", "label"], label_key="label", spatial_size=crop_size, pos=3, neg=1, num_samples=3, allow_smaller=True),
             ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=crop_size),
             RandLabelToContourd(keys=["image"], kernel_type="Scharr", prob=0.2),
             NormalizeIntensityd(keys=["image"], nonzero=False, channel_wise=False),
@@ -164,23 +164,21 @@ def main():
     )
 
     # Define train and val dataset
-    train_ds = CacheDataset(
-                            data=train_list,
-                            transform=train_transforms,
-                            cache_rate=0,
-                            )
-    val_ds = CacheDataset(
-                        data=val_list,
-                        transform=val_transforms,
-                        cache_rate=0,
-                        )
+    train_ds = Dataset(
+        data=train_list,
+        transform=train_transforms,
+    )
+    val_ds = Dataset(
+        data=val_list,
+        transform=val_transforms,
+    )
 
     # Define train and val DataLoader
     train_loader = DataLoader(
                             train_ds, 
                             batch_size=args.batch_size,
                             shuffle=True, 
-                            num_workers=5, 
+                            num_workers=4, 
                             pin_memory=False, 
                             persistent_workers=False
                             ) 
@@ -189,7 +187,7 @@ def main():
                         val_ds, 
                         batch_size=args.batch_size, 
                         shuffle=False, 
-                        num_workers=5, 
+                        num_workers=4, 
                         pin_memory=False, 
                         persistent_workers=False
                         )
@@ -306,7 +304,11 @@ def validate(data_loader, model, loss_func, epoch, device):
             x, y = (batch["image"].to(device), batch["label"].to(device))
 
             # Get output from model
+            if  x.isnan().any():
+                print ('found a nan in data.')
             y_pred = model(x)
+            if  y_pred.isnan().any():
+                print ('found a nan in output.')
 
             # Compute loss for each element in the batch size
             loss = 0
@@ -347,8 +349,7 @@ def train(data_loader, model, loss_func, optimizer, scaler, device):
         # Load input and target
         x, y = batch["image"].to(device), batch["label"].to(device)
         
-        #qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc')
-        #qc_reg_rgb(image_name=os.path.basename(x.meta['filename_or_obj'][0]), image=x.data.cpu().numpy()[0,0], target=y.data.cpu().numpy()[0,0], qc_path='./qc-rgb')
+        # qc_side_by_side(image_name=os.path.basename(x.meta['filename_or_obj'][0]), images=[x.data.cpu().numpy()[0,0],y.data.cpu().numpy()[0,0],y.data.cpu().numpy()[0,1]], qc_path='./qc')
         with torch.amp.autocast('cuda'):
             # Get output from model
             y_pred = model(x)
