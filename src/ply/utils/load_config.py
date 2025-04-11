@@ -254,7 +254,9 @@ def fetch_data_config(config_data, split='TRAINING'):
 
     # Check config type to ensure that labels paths are specified and not images
     if config_data['TYPE'] != 'LABEL':
-        raise ValueError('TYPE error: Type LABEL not detected')
+        add_seg = False
+    else:
+        add_seg = True
     
     # Get file paths based on split
     dict_list = config_data[split]
@@ -266,14 +268,22 @@ def fetch_data_config(config_data, split='TRAINING'):
     out_decathlon_monai = []
     for di in dict_list:
         img_path = os.path.join(config_data['DATASETS_PATH'], di['IMAGE'])
-        seg_path = os.path.join(config_data['DATASETS_PATH'], di['LABEL'])
+        if add_seg:
+            seg_path = os.path.join(config_data['DATASETS_PATH'], di['LABEL'])
 
         # Check if path exists
-        if not os.path.exists(img_path) or not os.path.exists(seg_path):
+        if not os.path.exists(img_path):
+            err.append(img_path)
+        elif add_seg and not os.path.exists(seg_path):
             err.append(seg_path)
         else:
             # Output paths using MONAI load_decathlon_datalist format
-            out_decathlon_monai.append({'image':img_path, 'label':seg_path})
+            if add_seg:
+                d = {'image':img_path, 'label':seg_path}
+            else:    
+                d = {'image':img_path}
+            
+            out_decathlon_monai.append(d)
         
         # Plot progress
         bar.suffix  = f'{dict_list.index(di)+1}/{len(dict_list)}'
